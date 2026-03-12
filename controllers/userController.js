@@ -62,7 +62,7 @@ export const uploadPhoto = async (req, res) => {
   if (error) return res.status(400).json(error);
 
   res.json({
-    message: "Photo uploaded",
+    message: "Photo uploaded Successfull",
     data
   });
 };
