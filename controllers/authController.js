@@ -2,6 +2,7 @@ import supabase from "../config/supabase.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateOTP } from "../utils/otp.js";
+import transporter from "../config/mailer.js";
 
 export const register = async (req, res) => {
   try {
@@ -76,6 +77,17 @@ export const sendOtp = async (req, res) => {
     await supabase
       .from("otp_codes")
       .insert([{ email, otp }]);
+
+       await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Your Loues OTP Code",
+      html: `
+        <h2>Your OTP Code</h2>
+        <h1>${otp}</h1>
+        <p>This code expires in 5 minutes.</p>
+      `
+    });
 
     res.json({
       message: "OTP sent",
