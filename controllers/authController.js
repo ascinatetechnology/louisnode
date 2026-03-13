@@ -70,32 +70,52 @@ export const logout = async (req, res) => {
 
 export const sendOtp = async (req, res) => {
   try {
+    console.log("📩 sendOtp API called");
+
     const { email } = req.body;
+
+    if (!email) {
+      console.log("❌ Email missing");
+      return res.status(400).json({ message: "Email required" });
+    }
 
     const otp = generateOTP();
 
-    await supabase
+    console.log("Generated OTP:", otp);
+
+    // Save OTP in database
+    const { data, error } = await supabase
       .from("otp_codes")
       .insert([{ email, otp }]);
 
-       await transporter.sendMail({
+    if (error) {
+      console.error("❌ Supabase Insert Error:", error);
+      return res.status(500).json(error);
+    }
+
+    console.log("✅ OTP saved to database");
+
+    // Send Email
+    const info = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Your Loues OTP Code",
-      html: `
-        <h2>Your OTP Code</h2>
-        <h1>${otp}</h1>
-        <p>This code expires in 5 minutes.</p>
-      `
+      subject: "Your OTP Code",
+      html: `<h2>Your OTP is ${otp}</h2>`
     });
 
+    console.log("📧 Email sent:", info.response);
+
     res.json({
-      message: "OTP sent",
-      otp
+      message: "OTP sent successfully"
     });
 
   } catch (err) {
-    res.status(500).json(err);
+    console.error("🔥 SEND OTP ERROR:", err);
+
+    res.status(500).json({
+      error: err.message,
+      code: err.code
+    });
   }
 };
 
