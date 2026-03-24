@@ -2,17 +2,26 @@ import supabase from "../config/supabase.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateOTP } from "../utils/otp.js";
-import {sendEmail} from "../config/emailService.js";
+import twilio from "twilio";
+
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
 export const register = async (req, res) => {
   try {
-    const { name, email, phone, password, bio, gender, age, latitude, longitude} = req.body;
+    const { name, phone, password } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ message: "Phone is required" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data, error } = await supabase
       .from("users")
-      .insert([{ name, email, phone, password: hashedPassword, bio, gender, age, latitude, longitude }])
+      .insert([{ name, phone, password: hashedPassword }])
       .select()
       .single();
 
@@ -25,6 +34,89 @@ export const register = async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const sendPhoneOtp = async (req, res) => {
+  try {
+    console.log("📩 sendPhoneOtp API called");
+
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ message: "Phone required" });
+    }
+
+    await client.verify.v2
+      .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+      .verifications.create({
+        to: phone,
+        channel: "sms"
+      });
+
+    console.log("✅ OTP sent to phone:", phone);
+
+    res.json({
+      message: "OTP sent successfully"
+    });
+
+  } catch (err) {
+    console.error("🔥 PHONE OTP ERROR:", err);
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
+};
+
+
+export const verifyPhoneOtp = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+
+    const verification = await client.verify.v2
+      .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+      .verificationChecks.create({
+        to: phone,
+        code: otp
+      });
+
+    if (verification.status !== "approved") {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // ✅ mark user verified
+    await supabase
+      .from("users")
+      .update({ is_verified: true })
+      .eq("phone", phone);
+
+    // ✅ login user (JWT)
+    const { data: user } = await supabase
+      .from("users")
+      .select("*")
+      .eq("phone", phone)
+      .single();
+
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      message: "Phone verified successfully",
+      token,
+      user
+    });
+
+  } catch (err) {
+    console.error("🔥 VERIFY OTP ERROR:", err);
+
+    res.status(500).json({
+      error: err.message
+    });
   }
 };
 
@@ -64,70 +156,7 @@ export const login = async (req, res) => {
   }
 };
 
-export const logout = async (req, res) => {
-  res.json({ message: "Logout success (client remove token)" });
-};
 
-export const sendOtp = async (req, res) => {
-  try {
-    console.log("📩 sendOtp API called");
-
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ message: "Email required" });
-    }
-
-    const otp = generateOTP();
-    console.log("Generated OTP:", otp);
-
-    const { error } = await supabase
-      .from("otp_codes")
-      .insert([{ email, otp }]);
-
-    if (error) {
-      console.error("❌ Supabase Error:", error);
-      return res.status(500).json(error);
-    }
-
-    console.log("✅ OTP saved to DB");
-
-    await sendEmail(email, otp);
-
-    res.json({
-      message: "OTP sent successfully"
-    });
-
-  } catch (err) {
-    console.error("🔥 SEND OTP ERROR:", err);
-
-    res.status(500).json({
-      error: err.message
-    });
-  }
-};
-
-export const verifyOtp = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    const { data } = await supabase
-      .from("otp_codes")
-      .select("*")
-      .eq("email", email)
-      .eq("otp", otp)
-      .single();
-
-    if (!data) {
-      return res.status(400).json({ message: "Invalid OTP" });
-    }
-
-    res.json({ message: "OTP verified" });
-
-  } catch (err) {
-    res.status(500).json(err);
-  }
-};
 
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -161,4 +190,8 @@ export const resetPassword = async (req, res) => {
   res.json({
     message: "Password reset successful"
   });
+};
+
+export const logout = async (req, res) => {
+  res.json({ message: "Logout success (client remove token)" });
 };
