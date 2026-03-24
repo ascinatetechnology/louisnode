@@ -169,23 +169,57 @@ export const verifyPhoneOtp = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { identifier, password } = req.body;
 
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", email)
-      .single();
+    if (!identifier || !password) {
+      return res.status(400).json({
+        message: "Email/Phone and password required"
+      });
+    }
+
+    identifier = identifier.trim();
+
+    let query;
+
+    // ✅ detect email or phone
+    if (identifier.includes("@")) {
+      // EMAIL LOGIN
+      query = supabase
+        .from("users")
+        .select("*")
+        .eq("email", identifier)
+        .single();
+    } else {
+      // PHONE LOGIN
+
+      // ✅ normalize here (NOT frontend)
+      if (!identifier.startsWith("+")) {
+        identifier = "+91" + identifier;
+      }
+
+      query = supabase
+        .from("users")
+        .select("*")
+        .eq("phone", identifier)
+        .single();
+    }
+
+    const { data: user, error } = await query;
 
     if (error || !user) {
-      return res.status(400).json({ message: "User not found" });
+      return res.status(400).json({
+        message: "User not found"
+      });
     }
 
-    const match = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!match) {
-      return res.status(401).json({ message: "Invalid password" });
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid password"
+      });
     }
+
 
     const token = jwt.sign(
       { id: user.id },
@@ -195,11 +229,17 @@ export const login = async (req, res) => {
 
     res.json({
       message: "Login successful",
-      token
+      token,
+      user
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("🔥 LOGIN ERROR:", err);
+
+    res.status(500).json({
+      message: "Login failed",
+      error: err.message
+    });
   }
 };
 
