@@ -11,21 +11,38 @@ const client = twilio(
 
 export const register = async (req, res) => {
   try {
-    const { name, phone, password } = req.body;
+    const { name, email, phone, password } = req.body;
+    if (!email && !phone) {
+      return res.status(400).json({
+        message: "Email or phone is required"
+      });
+    }
 
-    if (!phone) {
-      return res.status(400).json({ message: "Phone is required" });
+    if (!password) {
+      return res.status(400).json({
+        message: "Password is required"
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data, error } = await supabase
       .from("users")
-      .insert([{ name, phone, password: hashedPassword }])
+      .insert([
+        {
+          name: name || null,
+          email: email || null,
+          phone: phone || null,
+          password: hashedPassword
+        }
+      ])
       .select()
       .single();
 
-    if (error) return res.status(400).json(error);
+    if (error) {
+      console.error("❌ Register error:", error);
+      return res.status(400).json(error);
+    }
 
     res.json({
       message: "User registered successfully",
@@ -33,6 +50,7 @@ export const register = async (req, res) => {
     });
 
   } catch (err) {
+    console.error("🔥 Register crash:", err);
     res.status(500).json({ error: err.message });
   }
 };
