@@ -60,10 +60,18 @@ export const sendPhoneOtp = async (req, res) => {
   try {
     console.log("📩 sendPhoneOtp API called");
 
-    const { phone } = req.body;
+    let { phone } = req.body;
 
     if (!phone) {
       return res.status(400).json({ message: "Phone required" });
+    }
+
+    phone = phone.trim();
+
+    if (!phone.startsWith("+")) {
+      return res.status(400).json({
+        message: "Phone must include country code (e.g. +91...)"
+      });
     }
 
     await client.verify.v2
@@ -73,26 +81,39 @@ export const sendPhoneOtp = async (req, res) => {
         channel: "sms"
       });
 
-    console.log("✅ OTP sent to phone:", phone);
+    console.log("✅ OTP sent:", phone);
 
-    res.json({
+    await supabase.from("otp_codes").insert([
+      {
+        phone,
+        otp: null
+      }
+    ]);
+
+    return res.json({
       message: "OTP sent successfully"
     });
 
   } catch (err) {
     console.error("🔥 PHONE OTP ERROR:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
+      message: "Failed to send OTP",
       error: err.message
     });
   }
 };
 
-
 export const verifyPhoneOtp = async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    let { phone, otp } = req.body;
 
+    if (!phone || !otp) {
+      return res.status(400).json({
+        message: "Phone and OTP required"
+      });
+    }
+    phone = phone.trim();
     const verification = await client.verify.v2
       .services(process.env.TWILIO_VERIFY_SERVICE_SID)
       .verificationChecks.create({
@@ -100,30 +121,32 @@ export const verifyPhoneOtp = async (req, res) => {
         code: otp
       });
 
+    console.log("Twilio status:", verification.status);
+
     if (verification.status !== "approved") {
-      return res.status(400).json({ message: "Invalid OTP" });
+      return res.status(400).json({
+        message: "Invalid OTP"
+      });
     }
 
-    // ✅ mark user verified
-    await supabase
-      .from("users")
-      .update({ is_verified: true })
-      .eq("phone", phone);
-
-    // ✅ login user (JWT)
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("users")
       .select("*")
       .eq("phone", phone)
       .single();
 
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
     const token = jwt.sign(
       { id: user.id },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    res.json({
+    return res.json({
       message: "Phone verified successfully",
       token,
       user
@@ -132,7 +155,8 @@ export const verifyPhoneOtp = async (req, res) => {
   } catch (err) {
     console.error("🔥 VERIFY OTP ERROR:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
+      message: "Verification failed",
       error: err.message
     });
   }
