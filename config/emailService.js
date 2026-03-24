@@ -10,7 +10,7 @@ export const sendEmail = async (to, otp) => {
       subject: "Your OTP Code",
       html: `
         <div style="font-family:sans-serif">
-          <h2>Louis App 💛</h2>
+          <h2>Louis App</h2>
           <p>Your OTP is:</p>
           <h1>${otp}</h1>
           <p>This OTP will expire in 5 minutes</p>
