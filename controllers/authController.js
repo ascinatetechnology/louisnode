@@ -2,7 +2,7 @@ import supabase from "../config/supabase.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateOTP } from "../utils/otp.js";
-import transporter from "../config/mailer.js";
+import {sendEmail} from "../config/emailService.js";
 
 export const register = async (req, res) => {
   try {
@@ -75,35 +75,24 @@ export const sendOtp = async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-      console.log("❌ Email missing");
       return res.status(400).json({ message: "Email required" });
     }
 
     const otp = generateOTP();
-
     console.log("Generated OTP:", otp);
 
-    // Save OTP in database
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("otp_codes")
       .insert([{ email, otp }]);
 
     if (error) {
-      console.error("❌ Supabase Insert Error:", error);
+      console.error("❌ Supabase Error:", error);
       return res.status(500).json(error);
     }
 
-    console.log("✅ OTP saved to database");
+    console.log("✅ OTP saved to DB");
 
-    // Send Email
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Your OTP Code",
-      html: `<h2>Your OTP is ${otp}</h2>`
-    });
-
-    console.log("📧 Email sent:", info.response);
+    await sendEmail(email, otp);
 
     res.json({
       message: "OTP sent successfully"
@@ -113,8 +102,7 @@ export const sendOtp = async (req, res) => {
     console.error("🔥 SEND OTP ERROR:", err);
 
     res.status(500).json({
-      error: err.message,
-      code: err.code
+      error: err.message
     });
   }
 };
