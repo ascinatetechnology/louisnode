@@ -11,7 +11,8 @@ const client = twilio(
 
 export const register = async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    let { name, email, phone, password } = req.body;
+
     if (!email && !phone) {
       return res.status(400).json({
         message: "Email or phone is required"
@@ -22,6 +23,13 @@ export const register = async (req, res) => {
       return res.status(400).json({
         message: "Password is required"
       });
+    }
+    if (phone) {
+      phone = phone.trim();
+
+      if (!phone.startsWith("+")) {
+        phone = "+91" + phone;
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -40,7 +48,6 @@ export const register = async (req, res) => {
       .single();
 
     if (error) {
-      console.error("❌ Register error:", error);
       return res.status(400).json(error);
     }
 
@@ -50,11 +57,9 @@ export const register = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("🔥 Register crash:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const sendPhoneOtp = async (req, res) => {
   try {
