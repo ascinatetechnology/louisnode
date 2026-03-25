@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateOTP } from "../utils/otp.js";
 
-import { sendEmail } from "../services/emailService.js";
+import { sendEmail } from "../config/emailService.js";
 
 
 export const register = async (req, res) => {
