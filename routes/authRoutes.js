@@ -3,8 +3,8 @@ import {
   register,
   login,
   logout,
-  sendPhoneOtp,
-  verifyPhoneOtp,
+  sendOtp,
+  verifyOtp,
   forgotPassword,
   resetPassword
 } from "../controllers/authController.js";
@@ -15,8 +15,8 @@ router.post("/register", register);
 router.post("/login", login);
 router.post("/logout", logout);
 
-router.post("/send-phone-otp", sendPhoneOtp);
-router.post("/verify-phone-otp", verifyPhoneOtp);
+router.post("/send-otp", sendOtp);
+router.post("/verify-otp", verifyOtp);
 
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);

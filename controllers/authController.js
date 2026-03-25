@@ -2,12 +2,9 @@ import supabase from "../config/supabase.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateOTP } from "../utils/otp.js";
-import twilio from "twilio";
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+import { sendEmail } from "../services/emailService.js";
+
 
 export const register = async (req, res) => {
   try {
@@ -61,83 +58,87 @@ export const register = async (req, res) => {
   }
 };
 
-export const sendPhoneOtp = async (req, res) => {
+
+
+export const sendOtp = async (req, res) => {
   try {
-    console.log("📩 sendPhoneOtp API called");
+    console.log("📩 sendOtp API called");
 
-    let { phone } = req.body;
+    const { email } = req.body;
 
-    if (!phone) {
-      return res.status(400).json({ message: "Phone required" });
+    if (!email) {
+      return res.status(400).json({ message: "Email required" });
     }
 
-    phone = phone.trim();
+    const otp = generateOTP();
+    console.log("Generated OTP:", otp);
 
-    if (!phone.startsWith("+")) {
-      return res.status(400).json({
-        message: "Phone must include country code (e.g. +91...)"
-      });
+    const { error } = await supabase
+      .from("otp_codes")
+      .insert([{ email, otp }]);
+
+    if (error) {
+      console.error("❌ Supabase Error:", error);
+      return res.status(500).json(error);
     }
 
-    await client.verify.v2
-      .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-      .verifications.create({
-        to: phone,
-        channel: "sms"
-      });
+    console.log("✅ OTP saved to DB");
 
-    console.log("✅ OTP sent:", phone);
+    // 🚀 SEND EMAIL USING RESEND
+    await sendEmail(email, otp);
 
-    await supabase.from("otp_codes").insert([
-      {
-        phone,
-        otp: null
-      }
-    ]);
-
-    return res.json({
+    res.json({
       message: "OTP sent successfully"
     });
 
   } catch (err) {
-    console.error("🔥 PHONE OTP ERROR:", err);
+    console.error("🔥 SEND OTP ERROR:", err);
 
-    return res.status(500).json({
-      message: "Failed to send OTP",
+    res.status(500).json({
       error: err.message
     });
   }
 };
 
-export const verifyPhoneOtp = async (req, res) => {
+export const verifyOtp = async (req, res) => {
   try {
-    let { phone, otp } = req.body;
+    const { email, otp } = req.body;
 
-    if (!phone || !otp) {
+    if (!email || !otp) {
       return res.status(400).json({
-        message: "Phone and OTP required"
+        message: "Email and OTP required"
       });
     }
-    phone = phone.trim();
-    const verification = await client.verify.v2
-      .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-      .verificationChecks.create({
-        to: phone,
-        code: otp
-      });
 
-    console.log("Twilio status:", verification.status);
+    const { data, error } = await supabase
+      .from("otp_codes")
+      .select("*")
+      .eq("email", email)
+      .eq("otp", otp)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
 
-    if (verification.status !== "approved") {
+    if (error || !data) {
       return res.status(400).json({
         message: "Invalid OTP"
+      });
+    }
+
+    const now = new Date();
+    const createdAt = new Date(data.created_at);
+    const diff = (now - createdAt) / 1000;
+
+    if (diff > 300) {
+      return res.status(400).json({
+        message: "OTP expired"
       });
     }
 
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("*")
-      .eq("phone", phone)
+      .eq("email", email)
       .single();
 
     if (userError || !user) {
@@ -151,8 +152,13 @@ export const verifyPhoneOtp = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    await supabase
+      .from("otp_codes")
+      .delete()
+      .eq("id", data.id);
+
     return res.json({
-      message: "Phone verified successfully",
+      message: "Email verified successfully",
       token,
       user
     });
@@ -180,19 +186,14 @@ export const login = async (req, res) => {
     identifier = identifier.trim();
 
     let query;
-
-    // ✅ detect email or phone
     if (identifier.includes("@")) {
-      // EMAIL LOGIN
+
       query = supabase
         .from("users")
         .select("*")
         .eq("email", identifier)
         .single();
     } else {
-      // PHONE LOGIN
-
-      // ✅ normalize here (NOT frontend)
       if (!identifier.startsWith("+")) {
         identifier = "+91" + identifier;
       }
