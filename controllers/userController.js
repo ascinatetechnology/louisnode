@@ -18,28 +18,52 @@ export const getProfile = async (req, res) => {
 
 
 export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
 
-  const userId = req.user.id;
-
-  const { name, bio, gender, location } = req.body;
-
-  const { data, error } = await supabase
-    .from("users")
-    .update({
+    const {
       name,
-      bio,
+      dob,
       gender,
-      location
-    })
-    .eq("id", userId)
-    .select();
+      match_gender,
+      profile_image
+    } = req.body;
 
-  if (error) return res.status(400).json(error);
+    const updateData = {
+      ...(name && { name }),
+      ...(dob && { dob }),
+      ...(gender && { gender }),
+      ...(match_gender && { match_gender }),
+      ...(profile_image && { profile_image })
+    };
 
-  res.json({
-    message: "Profile updated",
-    data
-  });
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        message: "No data provided to update"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Update error:", error);
+      return res.status(400).json(error);
+    }
+
+    res.json({
+      message: "Profile updated",
+      user: data
+    });
+
+  } catch (err) {
+    console.error("🔥 Update crash:", err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 

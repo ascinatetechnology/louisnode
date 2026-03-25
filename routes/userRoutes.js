@@ -13,7 +13,7 @@ import {
 const router = express.Router();
 
 router.get("/me", verifyToken, getProfile);
-router.put("/me", verifyToken, updateProfile);
+router.put("/update-profile", verifyToken, updateProfile);
 
 router.post("/photos", verifyToken, uploadPhoto);
 router.delete("/photos/:id", verifyToken, deletePhoto);
