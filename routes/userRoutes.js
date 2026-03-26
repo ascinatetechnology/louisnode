@@ -7,13 +7,15 @@ import {
   uploadPhoto,
   deletePhoto,
   setPrimaryPhoto,
-  uploadVideo
+  uploadVideo,
+  saveAnswers
 } from "../controllers/userController.js";
 
 const router = express.Router();
 
 router.get("/me", verifyToken, getProfile);
 router.put("/update-profile", verifyToken, updateProfile);
+router.post("/save-answers", verifyToken, saveAnswers);
 
 router.post("/photos", verifyToken, uploadPhoto);
 router.delete("/photos/:id", verifyToken, deletePhoto);

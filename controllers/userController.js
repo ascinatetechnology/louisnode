@@ -66,6 +66,39 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const saveAnswers = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { answers } = req.body;
+
+    if (!answers || !Array.isArray(answers)) {
+      return res.status(400).json({ message: "Invalid answers format" });
+    }
+
+    const payload = answers.map(a => ({
+      user_id: userId,
+      question_id: a.question_id,
+      answer: a.answer
+    }));
+
+    const { data, error } = await supabase
+      .from("user_answers")
+      .insert(payload);
+
+    if (error) {
+      return res.status(400).json({ error });
+    }
+
+    res.json({
+      message: "Answers saved successfully",
+      data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
 export const uploadPhoto = async (req, res) => {
 
