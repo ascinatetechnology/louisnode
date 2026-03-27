@@ -1,12 +1,18 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import nodemailer from "nodemailer";
 
 export const sendEmail = async (to, otp) => {
   try {
-    const response = await resend.emails.send({
-      from: "Louis App <noreply@mail.ascinatetech.com>",
-      to: to,
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: `"Louis App" <${process.env.EMAIL_USER}>`,
+      to,
       subject: "Your OTP Code",
       html: `
         <div style="font-family:sans-serif">
@@ -16,13 +22,15 @@ export const sendEmail = async (to, otp) => {
           <p>This OTP will expire in 5 minutes</p>
         </div>
       `
-    });
+    };
 
-    console.log("✅ Email sent:", response);
-    return response;
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("✅ Email sent:", info);
+    return info;
 
   } catch (err) {
-    console.error("🔥 Resend Error:", err);
+    console.error("🔥 Nodemailer Error:", err);
     throw err;
   }
 };
