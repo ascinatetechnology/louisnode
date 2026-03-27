@@ -84,7 +84,6 @@ export const sendOtp = async (req, res) => {
 
     console.log("✅ OTP saved to DB");
 
-    // 🚀 SEND EMAIL USING RESEND
     await sendEmail(email, otp);
 
     res.json({
@@ -247,37 +246,127 @@ export const login = async (req, res) => {
 
 
 export const forgotPassword = async (req, res) => {
-  const { email } = req.body;
+  try {
+    const { email } = req.body;
 
-  const otp = generateOTP();
+    if (!email) {
+      return res.status(400).json({
+        message: "Email required"
+      });
+    }
 
-  await supabase
-    .from("otp_codes")
-    .insert([{ email, otp }]);
+    // ✅ check user exists
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
 
-  res.json({
-    message: "OTP sent for password reset",
-    otp
-  });
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    const otp = generateOTP();
+
+    // ✅ save OTP
+    await supabase
+      .from("otp_codes")
+      .insert([{ email, otp }]);
+
+    // ✅ send email (Brevo)
+    await sendEmail(email, otp);
+
+    return res.json({
+      message: "OTP sent to email"
+    });
+
+  } catch (err) {
+    console.error("🔥 FORGOT PASSWORD ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const verifyResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        message: "Email and OTP required"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("otp_codes")
+      .select("*")
+      .eq("email", email)
+      .eq("otp", otp)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return res.status(400).json({
+        message: "Invalid OTP"
+      });
+    }
+
+    // ⏱ expiry check (5 min)
+    const diff = (new Date() - new Date(data.created_at)) / 1000;
+
+    if (diff > 300) {
+      return res.status(400).json({
+        message: "OTP expired"
+      });
+    }
+
+    return res.json({
+      message: "OTP verified"
+    });
+
+  } catch (err) {
+    console.error("🔥 VERIFY RESET OTP ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 export const resetPassword = async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password required"
+      });
+    }
 
-  const { error } = await supabase
-    .from("users")
-    .update({ password: hashedPassword })
-    .eq("email", email);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  if (error) {
-    return res.status(400).json(error);
+    const { error } = await supabase
+      .from("users")
+      .update({ password: hashedPassword })
+      .eq("email", email);
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    // 🧹 delete all OTPs for this email
+    await supabase
+      .from("otp_codes")
+      .delete()
+      .eq("email", email);
+
+    return res.json({
+      message: "Password reset successful"
+    });
+
+  } catch (err) {
+    console.error("🔥 RESET PASSWORD ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
-
-  res.json({
-    message: "Password reset successful"
-  });
 };
 
 export const logout = async (req, res) => {
