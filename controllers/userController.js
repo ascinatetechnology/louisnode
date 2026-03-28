@@ -29,13 +29,27 @@ export const updateProfile = async (req, res) => {
       profile_image
     } = req.body;
 
-    const updateData = {
-      ...(name && { name }),
-      ...(dob && { dob }),
-      ...(gender && { gender }),
-      ...(match_gender && { match_gender }),
-      ...(profile_image && { profile_image })
-    };
+    const updateData = {};
+
+    if (name !== undefined && name !== null && name !== "") {
+      updateData.name = name;
+    }
+
+    if (dob !== undefined && dob !== null && dob !== "") {
+      updateData.dob = dob;
+    }
+
+    if (gender !== undefined && gender !== null && gender !== "") {
+      updateData.gender = gender;
+    }
+
+    if (match_gender !== undefined && match_gender !== null && match_gender !== "") {
+      updateData.match_gender = match_gender;
+    }
+
+    if (profile_image !== undefined && profile_image !== null && profile_image !== "") {
+      updateData.profile_image = profile_image;
+    }
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
