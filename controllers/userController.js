@@ -4,32 +4,42 @@ import supabase from "../config/supabase.js";
 export const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    const { data, error } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("users")
-      .select(`
-        *,
-        videos(video_url),
-        user_interests(interest_id)
-      `)
+      .select("*")
       .eq("id", userId)
       .single();
 
-    if (error) return res.status(400).json(error);
-    const formattedData = {
-      ...data,
-      video_url:
-        data.videos && data.videos.length > 0
-          ? data.videos[data.videos.length - 1].video_url
-          : null,
-      interests:
-        data.user_interests?.map(i => i.interest_id) || []
-    };
+    if (userError) {
+      return res.status(400).json(userError);
+    }
+    const { data: videoData, error: videoError } = await supabase
+      .from("videos")
+      .select("video_url")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    res.json(formattedData);
+    if (videoError) {
+      return res.status(400).json(videoError);
+    }
+    const { data: interestData, error: interestError } = await supabase
+      .from("user_interests")
+      .select("interest_id")
+      .eq("user_id", userId);
+
+    if (interestError) {
+      return res.status(400).json(interestError);
+    }
+    const interestIds = interestData.map(item => item.interest_id);
+    res.json({
+      ...user,
+      video_url: videoData?.[0]?.video_url || null,
+      interests: interestIds
+    });
 
   } catch (err) {
-    console.error("🔥 getProfile error:", err);
+    console.error("🔥 getProfile crash:", err);
     res.status(500).json({ error: err.message });
   }
 };
