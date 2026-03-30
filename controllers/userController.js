@@ -14,7 +14,7 @@ export const getProfile = async (req, res) => {
       return res.status(400).json(userError);
     }
     const { data: videoData, error: videoError } = await supabase
-      .from("videos")
+      .from("user_videos")
       .select("video_url")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
