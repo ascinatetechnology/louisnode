@@ -2,18 +2,54 @@ import supabase from "../config/supabase.js";
 
 
 export const getProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
 
-  const userId = req.user.id;
+    const { data, error } = await supabase
+      .from("users")
+      .select(`
+        *,
+        videos (
+          video_url,
+          created_at
+        ),
+        user_interests (
+          interest_id
+        )
+      `)
+      .eq("id", userId)
+      .single();
 
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", userId)
-    .single();
+    if (error) {
+      return res.status(400).json(error);
+    }
 
-  if (error) return res.status(400).json(error);
+    // 🎯 Extract latest video
+    let videoUrl = null;
+    if (data.videos && data.videos.length > 0) {
+      const latestVideo = data.videos.sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      )[0];
 
-  res.json(data);
+      videoUrl = latestVideo.video_url;
+    }
+
+    // 🎯 Extract interest IDs
+    const interestIds = data.user_interests
+      ? data.user_interests.map(i => i.interest_id)
+      : [];
+
+    // 🎯 Final clean response
+    res.json({
+      ...data,
+      video_url: videoUrl,
+      interests: interestIds
+    });
+
+  } catch (err) {
+    console.error("🔥 getProfile crash:", err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 
