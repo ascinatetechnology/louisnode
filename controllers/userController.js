@@ -9,49 +9,30 @@ export const getProfile = async (req, res) => {
       .from("users")
       .select(`
         *,
-        videos (
-          video_url,
-          created_at
-        ),
-        user_interests (
-          interest_id
-        )
+        videos(video_url),
+        user_interests(interest_id)
       `)
       .eq("id", userId)
       .single();
 
-    if (error) {
-      return res.status(400).json(error);
-    }
-
-    // 🎯 Extract latest video
-    let videoUrl = null;
-    if (data.videos && data.videos.length > 0) {
-      const latestVideo = data.videos.sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-      )[0];
-
-      videoUrl = latestVideo.video_url;
-    }
-
-    // 🎯 Extract interest IDs
-    const interestIds = data.user_interests
-      ? data.user_interests.map(i => i.interest_id)
-      : [];
-
-    // 🎯 Final clean response
-    res.json({
+    if (error) return res.status(400).json(error);
+    const formattedData = {
       ...data,
-      video_url: videoUrl,
-      interests: interestIds
-    });
+      video_url:
+        data.videos && data.videos.length > 0
+          ? data.videos[data.videos.length - 1].video_url
+          : null,
+      interests:
+        data.user_interests?.map(i => i.interest_id) || []
+    };
+
+    res.json(formattedData);
 
   } catch (err) {
-    console.error("🔥 getProfile crash:", err);
+    console.error("🔥 getProfile error:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const updateProfile = async (req, res) => {
   try {
