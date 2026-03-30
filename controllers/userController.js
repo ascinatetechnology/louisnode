@@ -80,6 +80,78 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const updateFullProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const {
+      name,
+      dob,
+      bio,
+      looking_for,
+      personality_tag,
+      location
+    } = req.body;
+
+    const updateData = {};
+
+    if (name) updateData.name = name;
+    if (dob) updateData.dob = dob;
+    if (bio) updateData.bio = bio;
+    if (looking_for) updateData.looking_for = looking_for;
+    if (personality_tag) updateData.personality_tag = personality_tag;
+    if (location) updateData.location = location;
+
+    const { data, error } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json(error);
+
+    res.json({
+      message: "Profile updated",
+      user: data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateUserInterests = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { interest_ids } = req.body;
+
+    await supabase
+      .from("user_interests")
+      .delete()
+      .eq("user_id", userId);
+
+    const payload = interest_ids.map(id => ({
+      user_id: userId,
+      interest_id: id
+    }));
+
+    const { data, error } = await supabase
+      .from("user_interests")
+      .insert(payload);
+
+    if (error) return res.status(400).json(error);
+
+    res.json({
+      message: "Interests updated",
+      data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const saveAnswers = async (req, res) => {
   try {
     const userId = req.user.id;

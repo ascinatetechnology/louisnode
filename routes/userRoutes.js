@@ -8,7 +8,9 @@ import {
   deletePhoto,
   setPrimaryPhoto,
   uploadVideo,
-  saveAnswers
+  saveAnswers,
+  updateFullProfile,
+  updateUserInterests
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -17,10 +19,12 @@ router.get("/me", verifyToken, getProfile);
 router.put("/update-profile", verifyToken, updateProfile);
 router.post("/save-answers", verifyToken, saveAnswers);
 
+router.put("/update-full-profile", verifyToken, updateFullProfile);
+router.post("/update-interests", verifyToken, updateUserInterests);
+router.post("/videos", verifyToken, uploadVideo);
+
 router.post("/photos", verifyToken, uploadPhoto);
 router.delete("/photos/:id", verifyToken, deletePhoto);
 router.patch("/photos/:id/primary", verifyToken, setPrimaryPhoto);
-
-router.post("/videos", verifyToken, uploadVideo);
 
 export default router;
