@@ -4,6 +4,7 @@ import cors from "cors";
 import path from "path";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import discoverRoutes from "./routes/discoverRoutes.js";
 const app = express();
 
 app.use(cors());
@@ -17,6 +18,7 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
+app.use("/discover", discoverRoutes);
 
 const PORT = process.env.PORT || 5000;
 
