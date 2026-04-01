@@ -108,7 +108,7 @@ export const getDiscoverUsers = async (req, res) => {
 
     const { data: currentUser, error: currentUserError } = await supabase
       .from("users")
-      .select("id, gender, age, latitude, longitude")
+      .select("id, gender, dob, latitude, longitude")
       .eq("id", userId)
       .single();
 
@@ -157,8 +157,7 @@ export const getDiscoverUsers = async (req, res) => {
       .select("*")
       .neq("id", userId)
       .eq("profile_visibility", true)
-      .gte("age", ageMin)
-      .lte("age", ageMax);
+      .not("dob", "is", null);
 
     if (genderPreference && genderPreference.toLowerCase() !== "everyone") {
       query = query.eq("gender", genderPreference.toLowerCase());
@@ -170,12 +169,19 @@ export const getDiscoverUsers = async (req, res) => {
       return res.status(400).json(usersError);
     }
 
-    let filteredUsers = (users || []).filter(
-      user =>
+    let filteredUsers = (users || []).filter(user => {
+      const age = calculateAgeFromDob(user.dob);
+
+      if (age === null) return false;
+
+      return (
+        age >= ageMin &&
+        age <= ageMax &&
         !likedIds.includes(user.id) &&
         !blockedIds.includes(user.id) &&
         !matchedIds.includes(user.id)
-    );
+      );
+    });
 
     if (
       currentUser.latitude &&
@@ -193,8 +199,15 @@ export const getDiscoverUsers = async (req, res) => {
         );
 
         user.distance_km = Number(distance.toFixed(1));
+        user.age = calculateAgeFromDob(user.dob);
+
         return distance <= distanceKm;
       });
+    } else {
+      filteredUsers = filteredUsers.map(user => ({
+        ...user,
+        age: calculateAgeFromDob(user.dob)
+      }));
     }
 
     return res.json({
@@ -206,6 +219,25 @@ export const getDiscoverUsers = async (req, res) => {
     console.error("🔥 getDiscoverUsers error:", err);
     return res.status(500).json({ error: err.message });
   }
+};
+
+const calculateAgeFromDob = (dob) => {
+  if (!dob) return null;
+
+  const birthDate = new Date(dob);
+  const today = new Date();
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
+    age--;
+  }
+
+  return age;
 };
 
 const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
