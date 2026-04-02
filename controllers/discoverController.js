@@ -160,7 +160,7 @@ export const getDiscoverUsers = async (req, res) => {
       .not("dob", "is", null);
 
     if (genderPreference && genderPreference.toLowerCase() !== "everyone") {
-      query = query.eq("gender", genderPreference.toLowerCase());
+      query = query.ilike("gender", genderPreference);
     }
 
     const { data: users, error: usersError } = await query;
@@ -250,9 +250,9 @@ const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
