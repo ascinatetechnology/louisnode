@@ -278,3 +278,66 @@ const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
 
   return R * c;
 };
+
+
+export const swipeUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { target_user_id, action } = req.body;
+
+    if (!target_user_id || !action) {
+      return res.status(400).json({ message: "Invalid request" });
+    }
+
+    if (action === "pass") {
+      return res.json({ message: "User skipped" });
+    }
+
+    const { error: likeError } = await supabase
+      .from("likes")
+      .insert([
+        {
+          user_id: userId,
+          liked_user_id: target_user_id
+        }
+      ]);
+
+    if (likeError) {
+      return res.status(400).json(likeError);
+    }
+
+    const { data: existingLike } = await supabase
+      .from("likes")
+      .select("*")
+      .eq("user_id", target_user_id)
+      .eq("liked_user_id", userId)
+      .maybeSingle();
+
+    if (existingLike) {
+      const { data: match } = await supabase
+        .from("matches")
+        .insert([
+          {
+            user1_id: userId,
+            user2_id: target_user_id,
+            status: "active"
+          }
+        ])
+        .select()
+        .single();
+
+      return res.json({
+        message: "It's a match ❤️",
+        match
+      });
+    }
+
+    return res.json({
+      message: "Liked successfully"
+    });
+
+  } catch (err) {
+    console.error("🔥 swipe error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
