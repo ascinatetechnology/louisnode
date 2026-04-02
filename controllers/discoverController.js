@@ -101,7 +101,6 @@ export const saveDiscoveryFilters = async (req, res) => {
   }
 };
 
-// GET /discover
 export const getDiscoverUsers = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -154,7 +153,13 @@ export const getDiscoverUsers = async (req, res) => {
 
     let query = supabase
       .from("users")
-      .select("*")
+      .select(`
+        *,
+        user_videos (
+          video_url,
+          created_at
+        )
+      `)
       .neq("id", userId)
       .eq("profile_visibility", true)
       .not("dob", "is", null);
@@ -210,10 +215,25 @@ export const getDiscoverUsers = async (req, res) => {
       }));
     }
 
+    const finalUsers = filteredUsers.map(user => {
+      let latestVideo = null;
+
+      if (user.user_videos && user.user_videos.length > 0) {
+        latestVideo = [...user.user_videos].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        )[0]?.video_url || null;
+      }
+
+      return {
+        ...user,
+        video_url: latestVideo
+      };
+    });
+
     return res.json({
       message: "Discover users fetched successfully",
-      count: filteredUsers.length,
-      users: filteredUsers
+      count: finalUsers.length,
+      users: finalUsers
     });
   } catch (err) {
     console.error("🔥 getDiscoverUsers error:", err);
@@ -250,9 +270,9 @@ const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-    Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
