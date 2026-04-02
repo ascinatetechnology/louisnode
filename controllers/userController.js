@@ -212,6 +212,45 @@ export const saveAnswers = async (req, res) => {
   }
 };
 
+export const updateLocation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { latitude, longitude } = req.body;
+
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({
+        message: "Latitude and longitude are required"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        latitude,
+        longitude,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Location updated successfully",
+      user: data
+    });
+  } catch (err) {
+    console.error("🔥 UPDATE LOCATION ERROR:", err);
+    return res.status(500).json({
+      message: "Location update failed",
+      error: err.message
+    });
+  }
+};
+
 
 export const uploadPhoto = async (req, res) => {
 

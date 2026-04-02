@@ -15,7 +15,7 @@ export const register = async (req, res) => {
         message: "Email or phone is required"
       });
     }
-
+ 
     if (!password) {
       return res.status(400).json({
         message: "Password is required"
