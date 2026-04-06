@@ -29,7 +29,6 @@ export const getDiscoveryPreferences = async (req, res) => {
   }
 };
 
-// POST /discover/filter
 export const saveDiscoveryFilters = async (req, res) => {
   try {
     const userId = req.user.id;
