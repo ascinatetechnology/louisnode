@@ -156,6 +156,7 @@ export const getDiscoverUsers = async (req, res) => {
         *,
         user_videos (
           video_url,
+          thumbnail_url,
           created_at
         )
       `)
@@ -216,16 +217,21 @@ export const getDiscoverUsers = async (req, res) => {
 
     const finalUsers = filteredUsers.map(user => {
       let latestVideo = null;
+      let latestThumbnail = null;
 
       if (user.user_videos && user.user_videos.length > 0) {
-        latestVideo = [...user.user_videos].sort(
+        const latestMedia = [...user.user_videos].sort(
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
-        )[0]?.video_url || null;
+        )[0];
+
+        latestVideo = latestMedia?.video_url || null;
+        latestThumbnail = latestMedia?.thumbnail_url || null;
       }
 
       return {
         ...user,
-        video_url: latestVideo
+        video_url: latestVideo,
+        thumbnail_url: latestThumbnail
       };
     });
 
