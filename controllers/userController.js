@@ -318,26 +318,30 @@ export const setPrimaryPhoto = async (req, res) => {
 
 
 
-// POST /users/videos
 export const uploadVideo = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { video_url, thumbnail_url } = req.body;
 
-  const userId = req.user.id;
-  const { video_url } = req.body;
+    const { data, error } = await supabase
+      .from("user_videos")
+      .insert([
+        {
+          user_id: userId,
+          video_url,
+          thumbnail_url
+        }
+      ])
+      .select();
 
-  const { data, error } = await supabase
-    .from("user_videos")
-    .insert([
-      {
-        user_id: userId,
-        video_url
-      }
-    ])
-    .select();
+    if (error) return res.status(400).json(error);
 
-  if (error) return res.status(400).json(error);
-
-  res.json({
-    message: "Video uploaded",
-    data
-  });
+    res.json({
+      message: "Video uploaded",
+      data
+    });
+  } catch (err) {
+    console.error("🔥 uploadVideo error:", err);
+    res.status(500).json({ error: err.message });
+  }
 };
