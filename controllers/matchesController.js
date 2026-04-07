@@ -33,6 +33,7 @@ export const getMyMatches = async (req, res) => {
         *,
         user_videos (
           video_url,
+          thumbnail_url,
           created_at
         )
       `)
@@ -44,11 +45,15 @@ export const getMyMatches = async (req, res) => {
 
     const finalUsers = (users || []).map((user) => {
       let latestVideo = null;
+      let latestThumbnail = null;
 
       if (user.user_videos && user.user_videos.length > 0) {
-        latestVideo = [...user.user_videos].sort(
+        const latestMedia = [...user.user_videos].sort(
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
-        )[0]?.video_url || null;
+        )[0];
+
+        latestVideo = latestMedia?.video_url || null;
+        latestThumbnail = latestMedia?.thumbnail_url || null;
       }
 
       const relatedMatch = matches.find(
@@ -58,6 +63,7 @@ export const getMyMatches = async (req, res) => {
       return {
         ...user,
         video_url: latestVideo,
+        thumbnail_url: latestThumbnail,
         match_id: relatedMatch?.id || null,
         matched_at: relatedMatch?.created_at || null,
       };
