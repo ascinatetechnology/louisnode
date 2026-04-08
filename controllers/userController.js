@@ -216,6 +216,36 @@ export const saveProfile = async (req, res) => {
   }
 };
 
+export const removeSavedProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const savedUserId = req.params.savedUserId?.trim();
+
+    if (!savedUserId) {
+      return res.status(400).json({
+        message: "savedUserId is required"
+      });
+    }
+
+    const { error } = await supabase
+      .from("saved_profiles")
+      .delete()
+      .eq("user_id", userId)
+      .eq("saved_user_id", savedUserId);
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Saved profile removed successfully"
+    });
+  } catch (err) {
+    console.error("removeSavedProfile error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;

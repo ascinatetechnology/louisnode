@@ -4,6 +4,7 @@ import { verifyToken } from "../middleware/authMiddleware.js";
 import {
   getProfile,
   getUserProfileById,
+  removeSavedProfile,
   saveProfile,
   updateProfile,
   uploadPhoto,
@@ -20,6 +21,7 @@ const router = express.Router();
 
 router.get("/me", verifyToken, getProfile);
 router.post("/save-profile", verifyToken, saveProfile);
+router.delete("/save-profile/:savedUserId", verifyToken, removeSavedProfile);
 router.get("/:id", verifyToken, getUserProfileById);
 router.put("/update-profile", verifyToken, updateProfile);
 router.post("/save-answers", verifyToken, saveAnswers);
