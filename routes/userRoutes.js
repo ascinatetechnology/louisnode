@@ -2,6 +2,7 @@ import express from "express";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
 import {
+  getSavedProfiles,
   getProfile,
   getUserProfileById,
   removeSavedProfile,
@@ -20,6 +21,7 @@ import {
 const router = express.Router();
 
 router.get("/me", verifyToken, getProfile);
+router.get("/saved-profiles", verifyToken, getSavedProfiles);
 router.post("/save-profile", verifyToken, saveProfile);
 router.delete("/save-profile/:savedUserId", verifyToken, removeSavedProfile);
 router.get("/:id", verifyToken, getUserProfileById);

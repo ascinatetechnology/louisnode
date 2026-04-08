@@ -246,6 +246,83 @@ export const removeSavedProfile = async (req, res) => {
   }
 };
 
+export const getSavedProfiles = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data: savedRows, error: savedError } = await supabase
+      .from("saved_profiles")
+      .select(`
+        id,
+        created_at,
+        saved_user_id,
+        users:saved_user_id (
+          id,
+          name,
+          dob,
+          location,
+          profile_image,
+          is_verified
+        )
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (savedError) {
+      return res.status(400).json(savedError);
+    }
+
+    const savedUserIds = (savedRows || []).map(item => item.saved_user_id);
+
+    let videoRows = [];
+
+    if (savedUserIds.length > 0) {
+      const { data, error } = await supabase
+        .from("user_videos")
+        .select("user_id, video_url, thumbnail_url, created_at")
+        .in("user_id", savedUserIds)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return res.status(400).json(error);
+      }
+
+      videoRows = data || [];
+    }
+
+    const latestVideoByUserId = {};
+    videoRows.forEach((item) => {
+      if (!latestVideoByUserId[item.user_id]) {
+        latestVideoByUserId[item.user_id] = item;
+      }
+    });
+
+    const users = (savedRows || [])
+      .filter(item => item?.users)
+      .map((item) => {
+        const savedUser = item.users;
+        const latestVideo = latestVideoByUserId[savedUser.id];
+
+        return {
+          ...savedUser,
+          age: calculateAgeFromDob(savedUser.dob),
+          saved_at: item.created_at,
+          video_url: latestVideo?.video_url || null,
+          thumbnail_url: latestVideo?.thumbnail_url || null
+        };
+      });
+
+    return res.json({
+      message: "Saved profiles fetched successfully",
+      count: users.length,
+      users
+    });
+  } catch (err) {
+    console.error("getSavedProfiles error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
