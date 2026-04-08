@@ -44,6 +44,119 @@ export const getProfile = async (req, res) => {
   }
 };
 
+export const getUserProfileById = async (req, res) => {
+  try {
+    const viewerId = req.user.id;
+    const profileId = Number(req.params.id);
+
+    if (!profileId) {
+      return res.status(400).json({
+        message: "Valid user id is required"
+      });
+    }
+
+    const { data: viewer, error: viewerError } = await supabase
+      .from("users")
+      .select("id, latitude, longitude")
+      .eq("id", viewerId)
+      .single();
+
+    if (viewerError || !viewer) {
+      return res.status(404).json({
+        message: "Current user not found"
+      });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", profileId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    if (user.profile_visibility === false && viewerId !== user.id) {
+      return res.status(404).json({
+        message: "Profile not available"
+      });
+    }
+
+    const { data: videoRows, error: videoError } = await supabase
+      .from("user_videos")
+      .select("video_url, thumbnail_url, created_at")
+      .eq("user_id", profileId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (videoError) {
+      return res.status(400).json(videoError);
+    }
+
+    const { data: photoRows, error: photoError } = await supabase
+      .from("user_photos")
+      .select("id, image_url, is_primary, created_at")
+      .eq("user_id", profileId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true });
+
+    if (photoError) {
+      return res.status(400).json(photoError);
+    }
+
+    const { data: interestRows, error: interestError } = await supabase
+      .from("user_interests")
+      .select("interest_id")
+      .eq("user_id", profileId);
+
+    if (interestError) {
+      return res.status(400).json(interestError);
+    }
+
+    const age = calculateAgeFromDob(user.dob);
+    const latestVideo = videoRows?.[0] || null;
+
+    let distanceKm = null;
+
+    if (
+      viewer?.latitude &&
+      viewer?.longitude &&
+      user?.latitude &&
+      user?.longitude
+    ) {
+      distanceKm = Number(
+        calculateDistanceKm(
+          viewer.latitude,
+          viewer.longitude,
+          user.latitude,
+          user.longitude
+        ).toFixed(1)
+      );
+    }
+
+    return res.json({
+      message: "Profile details fetched successfully",
+      user: {
+        ...user,
+        age,
+        distance_km: distanceKm,
+        video_url: latestVideo?.video_url || null,
+        thumbnail_url: latestVideo?.thumbnail_url || null,
+        photos: photoRows || [],
+        interests: (interestRows || []).map(item => item.interest_id)
+      }
+    });
+  } catch (err) {
+    console.error("getUserProfileById error:", err);
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+};
+
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -344,4 +457,42 @@ export const uploadVideo = async (req, res) => {
     console.error("🔥 uploadVideo error:", err);
     res.status(500).json({ error: err.message });
   }
+};
+
+const calculateAgeFromDob = (dob) => {
+  if (!dob) return null;
+
+  const birthDate = new Date(dob);
+  const today = new Date();
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
+    age--;
+  }
+
+  return age;
+};
+
+const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const toRad = value => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusKm * c;
 };
