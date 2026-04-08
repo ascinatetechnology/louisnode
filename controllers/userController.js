@@ -47,7 +47,7 @@ export const getProfile = async (req, res) => {
 export const getUserProfileById = async (req, res) => {
   try {
     const viewerId = req.user.id;
-    const profileId = Number(req.params.id);
+    const profileId = req.params.id?.trim();
 
     if (!profileId) {
       return res.status(400).json({
