@@ -157,6 +157,65 @@ export const getUserProfileById = async (req, res) => {
   }
 };
 
+export const saveProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { target_user_id } = req.body;
+
+    if (!target_user_id) {
+      return res.status(400).json({
+        message: "target_user_id is required"
+      });
+    }
+
+    if (target_user_id === userId) {
+      return res.status(400).json({
+        message: "You cannot save your own profile"
+      });
+    }
+
+    const { data: targetUser, error: targetUserError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", target_user_id)
+      .single();
+
+    if (targetUserError || !targetUser) {
+      return res.status(404).json({
+        message: "Target user not found"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("saved_profiles")
+      .upsert(
+        [
+          {
+            user_id: userId,
+            saved_user_id: target_user_id
+          }
+        ],
+        {
+          onConflict: "user_id,saved_user_id"
+        }
+      )
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Profile saved successfully",
+      saved_profile: data
+    });
+  } catch (err) {
+    console.error("saveProfile error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
