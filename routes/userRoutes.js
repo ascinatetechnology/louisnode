@@ -15,7 +15,8 @@ import {
   saveAnswers,
   updateFullProfile,
   updateUserInterests,
-  updateLocation
+  updateLocation,
+  blockUser
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -26,6 +27,8 @@ router.post("/save-profile", verifyToken, saveProfile);
 router.delete("/save-profile/:savedUserId", verifyToken, removeSavedProfile);
 router.get("/:id", verifyToken, getUserProfileById);
 router.put("/update-profile", verifyToken, updateProfile);
+router.post("/block-user", verifyToken, blockUser);
+
 router.post("/save-answers", verifyToken, saveAnswers);
 
 router.put("/update-full-profile", verifyToken, updateFullProfile);

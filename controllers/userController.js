@@ -323,6 +323,62 @@ export const getSavedProfiles = async (req, res) => {
   }
 };
 
+
+export const blockUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { blocked_user_id } = req.body;
+
+    if (!blocked_user_id) {
+      return res.status(400).json({
+        message: "blocked_user_id is required"
+      });
+    }
+
+    if (blocked_user_id === userId) {
+      return res.status(400).json({
+        message: "You cannot block yourself"
+      });
+    }
+
+    const { data: targetUser, error: targetUserError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", blocked_user_id)
+      .single();
+
+    if (targetUserError || !targetUser) {
+      return res.status(404).json({
+        message: "Target user not found"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("blocks")
+      .insert([
+        {
+          user_id: userId,
+          blocked_user_id
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "User blocked successfully",
+      block: data
+    });
+  } catch (err) {
+    console.error("blockUser error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
