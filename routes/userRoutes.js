@@ -2,6 +2,7 @@ import express from "express";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
 import {
+  getBlockedProfiles,
   getSavedProfiles,
   getProfile,
   getUserProfileById,
@@ -16,18 +17,21 @@ import {
   updateFullProfile,
   updateUserInterests,
   updateLocation,
-  blockUser
+  blockUser,
+  unblockUser
 } from "../controllers/userController.js";
 
 const router = express.Router();
 
 router.get("/me", verifyToken, getProfile);
 router.get("/saved-profiles", verifyToken, getSavedProfiles);
+router.get("/blocked-profiles", verifyToken, getBlockedProfiles);
 router.post("/save-profile", verifyToken, saveProfile);
 router.delete("/save-profile/:savedUserId", verifyToken, removeSavedProfile);
 router.get("/:id", verifyToken, getUserProfileById);
 router.put("/update-profile", verifyToken, updateProfile);
 router.post("/block-user", verifyToken, blockUser);
+router.delete("/block-user/:blockedUserId", verifyToken, unblockUser);
 
 router.post("/save-answers", verifyToken, saveAnswers);
 
@@ -40,3 +44,5 @@ router.delete("/photos/:id", verifyToken, deletePhoto);
 router.patch("/photos/:id/primary", verifyToken, setPrimaryPhoto);
 
 export default router;
+
+

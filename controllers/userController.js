@@ -324,6 +324,116 @@ export const getSavedProfiles = async (req, res) => {
 };
 
 
+export const getBlockedProfiles = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data: viewer, error: viewerError } = await supabase
+      .from("users")
+      .select("id, latitude, longitude")
+      .eq("id", userId)
+      .single();
+
+    if (viewerError || !viewer) {
+      return res.status(404).json({
+        message: "Current user not found"
+      });
+    }
+
+    const { data: blockedRows, error: blockedError } = await supabase
+      .from("blocks")
+      .select(`
+        id,
+        created_at,
+        blocked_user_id,
+        users:blocked_user_id (
+          id,
+          name,
+          dob,
+          location,
+          profile_image,
+          latitude,
+          longitude,
+          is_verified
+        )
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (blockedError) {
+      return res.status(400).json(blockedError);
+    }
+
+    const blockedUserIds = (blockedRows || []).map(item => item.blocked_user_id);
+
+    let videoRows = [];
+
+    if (blockedUserIds.length > 0) {
+      const { data, error } = await supabase
+        .from("user_videos")
+        .select("user_id, video_url, thumbnail_url, created_at")
+        .in("user_id", blockedUserIds)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return res.status(400).json(error);
+      }
+
+      videoRows = data || [];
+    }
+
+    const latestVideoByUserId = {};
+    videoRows.forEach((item) => {
+      if (!latestVideoByUserId[item.user_id]) {
+        latestVideoByUserId[item.user_id] = item;
+      }
+    });
+
+    const users = (blockedRows || [])
+      .filter(item => item?.users)
+      .map((item) => {
+        const blockedUser = item.users;
+        const latestVideo = latestVideoByUserId[blockedUser.id];
+
+        let distanceKm = null;
+
+        if (
+          viewer?.latitude &&
+          viewer?.longitude &&
+          blockedUser?.latitude &&
+          blockedUser?.longitude
+        ) {
+          distanceKm = Number(
+            calculateDistanceKm(
+              viewer.latitude,
+              viewer.longitude,
+              blockedUser.latitude,
+              blockedUser.longitude
+            ).toFixed(1)
+          );
+        }
+
+        return {
+          ...blockedUser,
+          age: calculateAgeFromDob(blockedUser.dob),
+          blocked_at: item.created_at,
+          distance_km: distanceKm,
+          video_url: latestVideo?.video_url || null,
+          thumbnail_url: latestVideo?.thumbnail_url || null
+        };
+      });
+
+    return res.json({
+      message: "Blocked profiles fetched successfully",
+      count: users.length,
+      users
+    });
+  } catch (err) {
+    console.error("getBlockedProfiles error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 export const blockUser = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -378,6 +488,36 @@ export const blockUser = async (req, res) => {
   }
 };
 
+
+export const unblockUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const blockedUserId = req.params.blockedUserId?.trim();
+
+    if (!blockedUserId) {
+      return res.status(400).json({
+        message: "blockedUserId is required"
+      });
+    }
+
+    const { error } = await supabase
+      .from("blocks")
+      .delete()
+      .eq("user_id", userId)
+      .eq("blocked_user_id", blockedUserId);
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "User unblocked successfully"
+    });
+  } catch (err) {
+    console.error("unblockUser error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
 
 export const updateProfile = async (req, res) => {
   try {
@@ -718,3 +858,5 @@ const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
 
   return earthRadiusKm * c;
 };
+
+
