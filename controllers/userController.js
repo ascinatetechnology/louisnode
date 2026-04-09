@@ -157,6 +157,117 @@ export const getUserProfileById = async (req, res) => {
   }
 };
 
+export const getNearbyUsers = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { latitude, longitude, radius = 20 } = req.query;
+
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({
+        message: "Latitude and longitude are required"
+      });
+    }
+
+    const myLat = parseFloat(latitude);
+    const myLng = parseFloat(longitude);
+    const maxRadius = parseFloat(radius);
+
+    if (isNaN(myLat) || isNaN(myLng) || isNaN(maxRadius)) {
+      return res.status(400).json({
+        message: "Invalid latitude, longitude, or radius"
+      });
+    }
+
+    const { data: currentUser, error: currentUserError } = await supabase
+      .from("users")
+      .select("id, gender, match_gender")
+      .eq("id", userId)
+      .single();
+
+    if (currentUserError || !currentUser) {
+      return res.status(404).json({
+        message: "Current user not found"
+      });
+    }
+
+    const { data: blockedRows } = await supabase
+      .from("blocks")
+      .select("blocked_user_id")
+      .eq("user_id", userId);
+
+    const blockedUserIds = (blockedRows || []).map(item => item.blocked_user_id);
+
+    const { data: users, error } = await supabase
+      .from("users")
+      .select(`
+        id,
+        name,
+        dob,
+        gender,
+        match_gender,
+        profile_image,
+        latitude,
+        longitude,
+        profile_visibility,
+        location,
+        is_verified
+      `)
+      .neq("id", userId)
+      .eq("profile_visibility", true)
+      .not("latitude", "is", null)
+      .not("longitude", "is", null);
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    const filteredUsers = (users || [])
+      .filter(user => !blockedUserIds.includes(user.id))
+      .filter(user => {
+        const iMatchUser =
+          !currentUser.match_gender ||
+          currentUser.match_gender === "BOTH" ||
+          currentUser.match_gender === user.gender;
+
+        const userMatchesMe =
+          !user.match_gender ||
+          user.match_gender === "BOTH" ||
+          user.match_gender === currentUser.gender;
+
+        return iMatchUser && userMatchesMe;
+      })
+      .map(user => {
+        const distance_km = Number(
+          calculateDistanceKm(
+            myLat,
+            myLng,
+            parseFloat(user.latitude),
+            parseFloat(user.longitude)
+          ).toFixed(1)
+        );
+
+        return {
+          ...user,
+          age: calculateAgeFromDob(user.dob),
+          distance_km
+        };
+      })
+      .filter(user => user.distance_km <= maxRadius)
+      .sort((a, b) => a.distance_km - b.distance_km);
+
+    return res.json({
+      message: "Nearby users fetched successfully",
+      count: filteredUsers.length,
+      users: filteredUsers
+    });
+  } catch (err) {
+    console.error("getNearbyUsers error:", err);
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+};
+
 export const saveProfile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -850,9 +961,9 @@ const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 

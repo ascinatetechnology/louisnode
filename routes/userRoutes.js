@@ -18,7 +18,8 @@ import {
   updateUserInterests,
   updateLocation,
   blockUser,
-  unblockUser
+  unblockUser,
+  getNearbyUsers
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -26,6 +27,7 @@ const router = express.Router();
 router.get("/me", verifyToken, getProfile);
 router.get("/saved-profiles", verifyToken, getSavedProfiles);
 router.get("/blocked-profiles", verifyToken, getBlockedProfiles);
+router.get("/nearby", verifyToken, getNearbyUsers);
 router.post("/save-profile", verifyToken, saveProfile);
 router.delete("/save-profile/:savedUserId", verifyToken, removeSavedProfile);
 router.get("/:id", verifyToken, getUserProfileById);
