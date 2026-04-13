@@ -1,4 +1,5 @@
 import supabase from "../config/supabase.js";
+import { createMessageNotification } from "../services/notificationService.js";
 
 export const registerChatSocket = (io) => {
   io.on("connection", (socket) => {
@@ -94,6 +95,20 @@ export const registerChatSocket = (io) => {
           return;
         }
 
+        const receiverId =
+          match.user1_id === sender_id ? match.user2_id : match.user1_id;
+
+        const { data: sender, error: senderError } = await supabase
+          .from("users")
+          .select("id, name")
+          .eq("id", sender_id)
+          .single();
+
+        if (senderError || !sender) {
+          callback?.({ ok: false, message: "Sender not found" });
+          return;
+        }
+
         const { data: insertedMessage, error: insertError } = await supabase
           .from("messages")
           .insert([
@@ -112,6 +127,15 @@ export const registerChatSocket = (io) => {
           callback?.({ ok: false, message: insertError.message });
           return;
         }
+
+        await createMessageNotification({
+          matchId: match_id,
+          senderId: sender_id,
+          receiverId,
+          senderName: sender.name,
+          message,
+          mediaUrl: media_url,
+        });
 
         io.to(`chat:${match_id}`).emit("message_received", insertedMessage);
 

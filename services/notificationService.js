@@ -131,6 +131,30 @@ export const createMatchNotifications = async ({
   ]);
 };
 
+export const createMessageNotification = async ({
+  matchId,
+  senderId,
+  receiverId,
+  senderName,
+  message,
+  mediaUrl = null,
+}) => {
+  const notificationMessage = message?.trim()
+    ? `${senderName || "Someone"}: ${message.trim()}`
+    : `${senderName || "Someone"} sent you a media`;
+
+  return createNotification({
+    userId: receiverId,
+    type: "message",
+    message: notificationMessage,
+    metadata: {
+      match_id: matchId,
+      sender_id: senderId,
+      media_url: mediaUrl,
+    },
+  });
+};
+
 export const savePushToken = async ({
   userId,
   expoPushToken,

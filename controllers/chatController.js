@@ -1,4 +1,5 @@
 import supabase from "../config/supabase.js";
+import { createMessageNotification } from "../services/notificationService.js";
 
 export const getChatList = async (req, res) => {
     try {
@@ -185,6 +186,19 @@ export const sendMessage = async (req, res) => {
             return res.status(403).json({ message: "Unauthorized" });
         }
 
+        const receiverId =
+            match.user1_id === userId ? match.user2_id : match.user1_id;
+
+        const { data: sender, error: senderError } = await supabase
+            .from("users")
+            .select("id, name")
+            .eq("id", userId)
+            .single();
+
+        if (senderError || !sender) {
+            return res.status(404).json({ message: "Sender not found" });
+        }
+
         const { data, error } = await supabase
             .from("messages")
             .insert([
@@ -202,6 +216,15 @@ export const sendMessage = async (req, res) => {
         if (error) {
             return res.status(400).json(error);
         }
+
+        await createMessageNotification({
+            matchId,
+            senderId: userId,
+            receiverId,
+            senderName: sender.name,
+            message,
+            mediaUrl: media_url,
+        });
 
         return res.json({
             message: "Message sent successfully",
