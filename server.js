@@ -10,8 +10,10 @@ import userRoutes from "./routes/userRoutes.js";
 import discoverRoutes from "./routes/discoverRoutes.js";
 import matchesRoutes from "./routes/matchesRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 import { registerChatSocket } from "./socket/chatSocket.js";
+import { registerNotificationSocket } from "./socket/notificationSocket.js";
 
 const app = express();
 
@@ -30,6 +32,7 @@ app.use("/users", userRoutes);
 app.use("/discover", discoverRoutes);
 app.use("/matches", matchesRoutes);
 app.use("/chat", chatRoutes);
+app.use("/notifications", notificationRoutes);
 
 const server = http.createServer(app);
 
@@ -41,6 +44,7 @@ const io = new Server(server, {
 });
 
 registerChatSocket(io);
+registerNotificationSocket(io);
 
 const PORT = process.env.PORT || 5000;
 

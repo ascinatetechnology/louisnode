@@ -1,4 +1,5 @@
 import supabase from "../config/supabase.js";
+import { createMatchNotifications } from "../services/notificationService.js";
 
 // GET /discover/preferences
 export const getDiscoveryPreferences = async (req, res) => {
@@ -298,6 +299,26 @@ export const swipeUser = async (req, res) => {
       return res.json({ message: "User skipped" });
     }
 
+    const { data: currentUser, error: currentUserError } = await supabase
+      .from("users")
+      .select("id, name")
+      .eq("id", userId)
+      .single();
+
+    if (currentUserError || !currentUser) {
+      return res.status(404).json({ message: "Current user not found" });
+    }
+
+    const { data: targetUser, error: targetUserError } = await supabase
+      .from("users")
+      .select("id, name")
+      .eq("id", target_user_id)
+      .single();
+
+    if (targetUserError || !targetUser) {
+      return res.status(404).json({ message: "Target user not found" });
+    }
+
     const { error: likeError } = await supabase
       .from("likes")
       .insert([
@@ -319,7 +340,7 @@ export const swipeUser = async (req, res) => {
       .maybeSingle();
 
     if (existingLike) {
-      const { data: match } = await supabase
+      const { data: match, error: matchError } = await supabase
         .from("matches")
         .insert([
           {
@@ -330,6 +351,18 @@ export const swipeUser = async (req, res) => {
         ])
         .select()
         .single();
+
+      if (matchError) {
+        return res.status(400).json(matchError);
+      }
+
+      await createMatchNotifications({
+        matchId: match.id,
+        user1Id: userId,
+        user2Id: target_user_id,
+        user1Name: currentUser.name,
+        user2Name: targetUser.name
+      });
 
       return res.json({
         message: "It's a match ❤️",
