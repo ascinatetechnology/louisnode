@@ -140,7 +140,7 @@ export const createMessageNotification = async ({
   mediaUrl = null,
 }) => {
   const notificationMessage = message?.trim()
-    ? `${senderName || "Someone"}: ${message.trim()}`
+    ? `${senderName || "Someone"} sent you a message`
     : `${senderName || "Someone"} sent you a media`;
 
   return createNotification({
