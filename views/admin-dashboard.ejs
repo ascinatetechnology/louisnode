@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard | Louis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink-strong: #11243f;
+        --ink-soft: #627089;
+        --surface: rgba(255, 255, 255, 0.78);
+        --line: rgba(17, 36, 63, 0.08);
+        --accent: #ff7a59;
+        --accent-soft: rgba(255, 122, 89, 0.14);
+        --success-soft: rgba(42, 157, 143, 0.14);
+        --danger-soft: rgba(226, 85, 85, 0.12);
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Manrope", sans-serif;
+        color: var(--ink-strong);
+        background:
+          radial-gradient(circle at top left, rgba(255, 122, 89, 0.18), transparent 24%),
+          radial-gradient(circle at 100% 20%, rgba(53, 112, 255, 0.13), transparent 24%),
+          linear-gradient(135deg, #fbf1e8 0%, #f3f7fc 55%, #f9fbfe 100%);
+      }
+
+      .page-shell {
+        padding: 32px 0 48px;
+      }
+
+      .glass-card {
+        background: var(--surface);
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        box-shadow: 0 24px 70px rgba(17, 36, 63, 0.11);
+        backdrop-filter: blur(18px);
+      }
+
+      .hero-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 32px;
+        padding: 32px;
+        background:
+          radial-gradient(circle at top right, rgba(255, 122, 89, 0.2), transparent 30%),
+          linear-gradient(140deg, #0f2038 0%, #183b66 55%, #24548f 100%);
+        color: #fff;
+      }
+
+      .hero-card::after {
+        content: "";
+        position: absolute;
+        width: 260px;
+        height: 260px;
+        right: -70px;
+        bottom: -100px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        pointer-events: none;
+      }
+
+      .hero-card .row {
+        position: relative;
+        z-index: 1;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .hero-title {
+        font-size: clamp(2rem, 4vw, 3.1rem);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+      }
+
+      .hero-copy {
+        max-width: 38rem;
+        color: rgba(255, 255, 255, 0.78);
+        line-height: 1.75;
+      }
+
+      .hero-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .ghost-btn,
+      .solid-btn {
+        border-radius: 16px;
+        padding: 12px 18px;
+        font-weight: 700;
+      }
+
+      .solid-btn {
+        background: linear-gradient(135deg, var(--accent) 0%, #e95b3b 100%);
+        color: white;
+        border: 0;
+        box-shadow: 0 16px 28px rgba(233, 91, 59, 0.28);
+      }
+
+      .ghost-btn {
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        text-decoration: none;
+      }
+
+      .logout-btn {
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 22px;
+      }
+
+      .metric-card {
+        border-radius: 24px;
+        padding: 22px;
+      }
+
+      .metric-label {
+        color: var(--ink-soft);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+      }
+
+      .metric-value {
+        font-size: clamp(1.8rem, 3vw, 2.6rem);
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        margin-top: 10px;
+      }
+
+      .metric-note {
+        color: var(--ink-soft);
+        font-size: 0.92rem;
+      }
+
+      .panel-card {
+        border-radius: 28px;
+        padding: 28px;
+        height: 100%;
+      }
+
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .panel-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
+      .panel-copy {
+        margin: 6px 0 0;
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+      }
+
+      .table-wrap {
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: rgba(248, 250, 253, 0.82);
+      }
+
+      .table {
+        margin: 0;
+      }
+
+      .table th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink-soft);
+        background: rgba(255, 255, 255, 0.72);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .table td,
+      .table th {
+        padding: 16px 18px;
+        vertical-align: middle;
+        border-color: var(--line);
+      }
+
+      .user-chip,
+      .status-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 7px 12px;
+      }
+
+      .status-chip {
+        background: var(--accent-soft);
+        color: #bf492f;
+      }
+
+      .profile-card {
+        border-radius: 24px;
+        padding: 22px;
+        border: 1px solid var(--line);
+        background: rgba(249, 250, 253, 0.92);
+      }
+
+      .profile-meta {
+        color: var(--ink-soft);
+        font-size: 0.92rem;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(17, 36, 63, 0.08);
+        color: var(--ink-strong);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .action-btn {
+        border: 0;
+        border-radius: 14px;
+        padding: 10px 14px;
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
+      .danger-btn {
+        background: var(--danger-soft);
+        color: #bf3f3f;
+      }
+
+      .success-btn {
+        background: var(--success-soft);
+        color: #1a7f71;
+      }
+
+      .remove-btn {
+        background: rgba(17, 36, 63, 0.08);
+        color: var(--ink-strong);
+      }
+
+      .alert {
+        border-radius: 18px;
+        border: 0;
+        box-shadow: 0 14px 32px rgba(17, 36, 63, 0.08);
+      }
+
+      @media (max-width: 991.98px) {
+        .stats-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 575.98px) {
+        .hero-card,
+        .panel-card,
+        .metric-card {
+          padding: 22px;
+          border-radius: 24px;
+        }
+
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .panel-head {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container page-shell">
+      <div class="hero-card mb-4">
+        <div class="row align-items-end g-4">
+          <div class="col-lg-8">
+            <span class="eyebrow">Louis Moderation</span>
+            <h1 class="hero-title mt-3 mb-3">A calmer, faster command center for trust and safety.</h1>
+            <p class="hero-copy mb-0">
+              Track incoming reports, take action on abusive accounts, and manage profile removals from a modern static admin workspace.
+            </p>
+          </div>
+          <div class="col-lg-4">
+            <div class="hero-actions justify-content-lg-end">
+              <button id="refreshReports" class="solid-btn">Refresh API</button>
+              <a href="/" class="ghost-btn">Back to Login</a>
+              <button id="logoutBtn" class="ghost-btn logout-btn" type="button">Logout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="glass-card metric-card">
+          <div class="metric-label">Open Reports</div>
+          <div class="metric-value"><%= summary.open_reports %></div>
+          <div class="metric-note">Cases currently awaiting moderation action.</div>
+        </div>
+        <div class="glass-card metric-card">
+          <div class="metric-label">Banned Users</div>
+          <div class="metric-value"><%= summary.banned_users %></div>
+          <div class="metric-note">Accounts blocked after review or repeated abuse.</div>
+        </div>
+        <div class="glass-card metric-card">
+          <div class="metric-label">Removed Profiles</div>
+          <div class="metric-value"><%= summary.abusive_profiles_removed %></div>
+          <div class="metric-note">Profiles taken down for policy violations.</div>
+        </div>
+        <div class="glass-card metric-card">
+          <div class="metric-label">Escalated Cases</div>
+          <div class="metric-value"><%= summary.escalated_cases %></div>
+          <div class="metric-note">Items requiring extra admin or trust review.</div>
+        </div>
+      </div>
+
+      <div class="row g-4 mt-1">
+        <div class="col-12 col-xl-7">
+          <div class="glass-card panel-card">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Reported Users</h2>
+                <p class="panel-copy">Recent reports surfaced for quick moderation decisions.</p>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th>Case</th>
+                    <th>User</th>
+                    <th>Issue</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% reports.forEach(function(report) { %>
+                  <tr>
+                    <td>
+                      <div class="fw-bold"><%= report.report_id %></div>
+                      <div class="small text-secondary text-capitalize">
+                        <%= report.status.replace("_", " ") %>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="fw-bold"><%= report.reported_name %></div>
+                      <div class="small text-secondary"><%= report.reported_user_id %></div>
+                    </td>
+                    <td>
+                      <span class="status-chip mb-2"><%= report.severity %> priority</span>
+                      <div class="small"><%= report.reason %></div>
+                    </td>
+                    <td>
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button
+                          class="action-btn danger-btn"
+                          onclick="moderateUser('<%= report.reported_user_id %>', 'ban')"
+                        >
+                          Ban
+                        </button>
+                        <button
+                          class="action-btn success-btn"
+                          onclick="moderateUser('<%= report.reported_user_id %>', 'unban')"
+                        >
+                          Unban
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+          <div class="glass-card panel-card">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Flagged Profiles</h2>
+                <p class="panel-copy">Profiles with patterns that likely need direct intervention.</p>
+              </div>
+            </div>
+
+            <div class="d-flex flex-column gap-3">
+              <% flaggedProfiles.forEach(function(profile) { %>
+              <div class="profile-card">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                  <div>
+                    <div class="fw-bold fs-5"><%= profile.name %></div>
+                    <div class="profile-meta mt-1"><%= profile.user_id %></div>
+                  </div>
+                  <span class="tag"><%= profile.action_suggested %></span>
+                </div>
+                <p class="profile-meta mt-3 mb-3"><%= profile.issue %></p>
+                <button
+                  class="action-btn remove-btn"
+                  onclick="removeProfile('<%= profile.user_id %>')"
+                >
+                  Remove Abusive Profile
+                </button>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="actionMessage" class="alert mt-4 d-none" role="alert"></div>
+    </div>
+
+    <script>
+      const actionMessage = document.getElementById("actionMessage");
+
+      const showMessage = (text, type) => {
+        actionMessage.className = `alert alert-${type} mt-4`;
+        actionMessage.textContent = text;
+      };
+
+      const moderateUser = async (userId, action) => {
+        const endpoint = action === "ban"
+          ? `/admin/users/${userId}/ban`
+          : `/admin/users/${userId}/unban`;
+
+        const response = await fetch(endpoint, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            reason: `Static ${action} action from admin dashboard`
+          })
+        });
+
+        const data = await response.json();
+        showMessage(data.message, response.ok ? "success" : "danger");
+      };
+
+      const removeProfile = async (userId) => {
+        const response = await fetch(`/admin/users/${userId}/remove-profile`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            reason: "Static abusive profile removal from dashboard"
+          })
+        });
+
+        const data = await response.json();
+        showMessage(data.message, response.ok ? "warning" : "danger");
+      };
+
+      document.getElementById("refreshReports").addEventListener("click", async () => {
+        const response = await fetch("/admin/reports/dashboard", {
+          credentials: "same-origin"
+        });
+        const data = await response.json();
+        showMessage(
+          `${data.message}. Open reports: ${data.summary.open_reports}`,
+          response.ok ? "info" : "danger"
+        );
+      });
+
+      document.getElementById("logoutBtn").addEventListener("click", async () => {
+        const response = await fetch("/admin/logout", {
+          method: "POST",
+          credentials: "same-origin"
+        });
+
+        const data = await response.json();
+
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminUser");
+
+        showMessage(data.message, response.ok ? "success" : "danger");
+
+        if (response.ok) {
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 500);
+        }
+      });
+    </script>
+  </body>
+</html>

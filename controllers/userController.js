@@ -630,6 +630,71 @@ export const unblockUser = async (req, res) => {
   }
 };
 
+export const reportUser = async (req, res) => {
+  try {
+    const reporterId = req.user.id;
+    const { reported_user_id, reason, description } = req.body;
+
+    if (!reported_user_id) {
+      return res.status(400).json({
+        message: "reported_user_id is required"
+      });
+    }
+
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({
+        message: "reason is required"
+      });
+    }
+
+    if (reported_user_id === reporterId) {
+      return res.status(400).json({
+        message: "You cannot report yourself"
+      });
+    }
+
+    const { data: targetUser, error: targetUserError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", reported_user_id)
+      .single();
+
+    if (targetUserError || !targetUser) {
+      return res.status(404).json({
+        message: "Reported user not found"
+      });
+    }
+
+    const payload = {
+      reporter_id: reporterId,
+      reported_user_id,
+      reason: String(reason).trim(),
+      description: description ? String(description).trim() : null,
+      status: "pending"
+    };
+
+    const { data, error } = await supabase
+      .from("reports")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Report submitted successfully",
+      report: data
+    });
+  } catch (err) {
+    console.error("reportUser error:", err);
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+};
+
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;

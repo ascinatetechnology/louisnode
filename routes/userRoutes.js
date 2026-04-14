@@ -19,6 +19,7 @@ import {
   updateLocation,
   blockUser,
   unblockUser,
+  reportUser,
   getNearbyUsers
 } from "../controllers/userController.js";
 
@@ -34,6 +35,7 @@ router.get("/:id", verifyToken, getUserProfileById);
 router.put("/update-profile", verifyToken, updateProfile);
 router.post("/block-user", verifyToken, blockUser);
 router.delete("/block-user/:blockedUserId", verifyToken, unblockUser);
+router.post("/report-user", verifyToken, reportUser);
 
 router.post("/save-answers", verifyToken, saveAnswers);
 

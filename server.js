@@ -11,6 +11,7 @@ import discoverRoutes from "./routes/discoverRoutes.js";
 import matchesRoutes from "./routes/matchesRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 import { registerChatSocket } from "./socket/chatSocket.js";
 import { registerNotificationSocket } from "./socket/notificationSocket.js";
@@ -33,6 +34,7 @@ app.use("/discover", discoverRoutes);
 app.use("/matches", matchesRoutes);
 app.use("/chat", chatRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/admin", adminRoutes);
 
 const server = http.createServer(app);
 
