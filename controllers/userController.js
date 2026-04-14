@@ -85,6 +85,15 @@ export const getUserProfileById = async (req, res) => {
       });
     }
 
+    if (
+      viewerId !== user.id &&
+      (user.is_banned === true || user.moderation_status === "removed")
+    ) {
+      return res.status(404).json({
+        message: "Profile not available"
+      });
+    }
+
     const { data: videoRows, error: videoError } = await supabase
       .from("user_videos")
       .select("video_url, thumbnail_url, created_at")
@@ -209,11 +218,15 @@ export const getNearbyUsers = async (req, res) => {
         latitude,
         longitude,
         profile_visibility,
+        is_banned,
+        moderation_status,
         location,
         is_verified
       `)
       .neq("id", userId)
       .eq("profile_visibility", true)
+      .eq("is_banned", false)
+      .neq("moderation_status", "removed")
       .not("latitude", "is", null)
       .not("longitude", "is", null);
 

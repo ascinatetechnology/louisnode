@@ -163,6 +163,8 @@ export const getDiscoverUsers = async (req, res) => {
       `)
       .neq("id", userId)
       .eq("profile_visibility", true)
+      .eq("is_banned", false)
+      .neq("moderation_status", "removed")
       .not("dob", "is", null);
 
     if (genderPreference && genderPreference.toLowerCase() !== "everyone") {

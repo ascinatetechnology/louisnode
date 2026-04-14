@@ -219,6 +219,12 @@
         border-color: var(--line);
       }
 
+      .empty-state {
+        padding: 28px 18px;
+        text-align: center;
+        color: var(--ink-soft);
+      }
+
       .user-chip,
       .status-chip {
         display: inline-flex;
@@ -335,22 +341,22 @@
       <div class="stats-grid">
         <div class="glass-card metric-card">
           <div class="metric-label">Open Reports</div>
-          <div class="metric-value"><%= summary.open_reports %></div>
+          <div class="metric-value" id="openReportsValue"><%= summary.open_reports %></div>
           <div class="metric-note">Cases currently awaiting moderation action.</div>
         </div>
         <div class="glass-card metric-card">
           <div class="metric-label">Banned Users</div>
-          <div class="metric-value"><%= summary.banned_users %></div>
+          <div class="metric-value" id="bannedUsersValue"><%= summary.banned_users %></div>
           <div class="metric-note">Accounts blocked after review or repeated abuse.</div>
         </div>
         <div class="glass-card metric-card">
           <div class="metric-label">Removed Profiles</div>
-          <div class="metric-value"><%= summary.abusive_profiles_removed %></div>
+          <div class="metric-value" id="removedProfilesValue"><%= summary.abusive_profiles_removed %></div>
           <div class="metric-note">Profiles taken down for policy violations.</div>
         </div>
         <div class="glass-card metric-card">
           <div class="metric-label">Escalated Cases</div>
-          <div class="metric-value"><%= summary.escalated_cases %></div>
+          <div class="metric-value" id="escalatedCasesValue"><%= summary.escalated_cases %></div>
           <div class="metric-note">Items requiring extra admin or trust review.</div>
         </div>
       </div>
@@ -375,7 +381,7 @@
                     <th>Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="reportsTableBody">
                   <% reports.forEach(function(report) { %>
                   <tr>
                     <td>
@@ -425,7 +431,7 @@
               </div>
             </div>
 
-            <div class="d-flex flex-column gap-3">
+            <div class="d-flex flex-column gap-3" id="flaggedProfilesList">
               <% flaggedProfiles.forEach(function(profile) { %>
               <div class="profile-card">
                 <div class="d-flex justify-content-between align-items-start gap-3">
@@ -454,13 +460,122 @@
 
     <script>
       const actionMessage = document.getElementById("actionMessage");
+      const reportsTableBody = document.getElementById("reportsTableBody");
+      const flaggedProfilesList = document.getElementById("flaggedProfilesList");
+      const openReportsValue = document.getElementById("openReportsValue");
+      const bannedUsersValue = document.getElementById("bannedUsersValue");
+      const removedProfilesValue = document.getElementById("removedProfilesValue");
+      const escalatedCasesValue = document.getElementById("escalatedCasesValue");
 
       const showMessage = (text, type) => {
         actionMessage.className = `alert alert-${type} mt-4`;
         actionMessage.textContent = text;
       };
 
-      const moderateUser = async (userId, action) => {
+      const escapeHtml = (value) =>
+        String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+
+      const renderSummary = (summary) => {
+        openReportsValue.textContent = summary.open_reports ?? 0;
+        bannedUsersValue.textContent = summary.banned_users ?? 0;
+        removedProfilesValue.textContent = summary.abusive_profiles_removed ?? 0;
+        escalatedCasesValue.textContent = summary.escalated_cases ?? 0;
+      };
+
+      const renderReports = (reports) => {
+        if (!reports || reports.length === 0) {
+          reportsTableBody.innerHTML = `
+            <tr>
+              <td colspan="4" class="empty-state">No reports available yet.</td>
+            </tr>
+          `;
+          return;
+        }
+
+        reportsTableBody.innerHTML = reports.map((report) => `
+          <tr>
+            <td>
+              <div class="fw-bold">${escapeHtml(report.report_id)}</div>
+              <div class="small text-secondary text-capitalize">${escapeHtml(String(report.status || "").replaceAll("_", " "))}</div>
+            </td>
+            <td>
+              <div class="fw-bold">${escapeHtml(report.reported_name)}</div>
+              <div class="small text-secondary">${escapeHtml(report.reported_user_id)}</div>
+            </td>
+            <td>
+              <span class="status-chip mb-2">${escapeHtml(report.severity)} priority</span>
+              <div class="small">${escapeHtml(report.reason)}</div>
+            </td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="action-btn danger-btn" onclick="moderateUser('${escapeHtml(report.reported_user_id)}', 'ban')">Ban</button>
+                <button class="action-btn success-btn" onclick="moderateUser('${escapeHtml(report.reported_user_id)}', 'unban')">Unban</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+      };
+
+      const renderFlaggedProfiles = (profiles) => {
+        if (!profiles || profiles.length === 0) {
+          flaggedProfilesList.innerHTML = `
+            <div class="profile-card">
+              <div class="profile-meta">No flagged profiles yet.</div>
+            </div>
+          `;
+          return;
+        }
+
+        flaggedProfilesList.innerHTML = profiles.map((profile) => `
+          <div class="profile-card">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <div class="fw-bold fs-5">${escapeHtml(profile.name)}</div>
+                <div class="profile-meta mt-1">${escapeHtml(profile.user_id)}</div>
+              </div>
+              <span class="tag">${escapeHtml(profile.action_suggested)}</span>
+            </div>
+            <p class="profile-meta mt-3 mb-3">${escapeHtml(profile.issue)}${profile.report_count ? ` (${escapeHtml(profile.report_count)} reports)` : ""}</p>
+            <button
+              class="action-btn remove-btn"
+              onclick="removeProfile('${escapeHtml(profile.user_id)}')"
+            >
+              Remove Abusive Profile
+            </button>
+          </div>
+        `).join("");
+      };
+
+      const refreshDashboard = async (showToast = false) => {
+        const response = await fetch("/admin/reports/dashboard", {
+          credentials: "same-origin"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          showMessage(data.message || "Failed to refresh dashboard", "danger");
+          return;
+        }
+
+        renderSummary(data.summary || {});
+        renderReports(data.reports || []);
+        renderFlaggedProfiles(data.flagged_profiles || []);
+
+        if (showToast) {
+          showMessage(
+            `${data.message}. Open reports: ${data.summary.open_reports}`,
+            "info"
+          );
+        }
+      };
+
+      window.moderateUser = async (userId, action) => {
         const endpoint = action === "ban"
           ? `/admin/users/${userId}/ban`
           : `/admin/users/${userId}/unban`;
@@ -478,9 +593,13 @@
 
         const data = await response.json();
         showMessage(data.message, response.ok ? "success" : "danger");
+
+        if (response.ok) {
+          await refreshDashboard(false);
+        }
       };
 
-      const removeProfile = async (userId) => {
+      window.removeProfile = async (userId) => {
         const response = await fetch(`/admin/users/${userId}/remove-profile`, {
           method: "DELETE",
           headers: {
@@ -494,17 +613,14 @@
 
         const data = await response.json();
         showMessage(data.message, response.ok ? "warning" : "danger");
+
+        if (response.ok) {
+          await refreshDashboard(false);
+        }
       };
 
       document.getElementById("refreshReports").addEventListener("click", async () => {
-        const response = await fetch("/admin/reports/dashboard", {
-          credentials: "same-origin"
-        });
-        const data = await response.json();
-        showMessage(
-          `${data.message}. Open reports: ${data.summary.open_reports}`,
-          response.ok ? "info" : "danger"
-        );
+        await refreshDashboard(true);
       });
 
       document.getElementById("logoutBtn").addEventListener("click", async () => {
