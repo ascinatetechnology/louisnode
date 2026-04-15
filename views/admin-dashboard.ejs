@@ -458,6 +458,7 @@
       <div id="actionMessage" class="alert mt-4 d-none" role="alert"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
       const actionMessage = document.getElementById("actionMessage");
       const reportsTableBody = document.getElementById("reportsTableBody");
@@ -468,6 +469,19 @@
       const escalatedCasesValue = document.getElementById("escalatedCasesValue");
 
       const showMessage = (text, type) => {
+        if (window.Swal) {
+          Swal.fire({
+            toast: true,
+            position: "top-end",
+            icon: type === "danger" ? "error" : type,
+            title: text,
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+          });
+          return;
+        }
+
         actionMessage.className = `alert alert-${type} mt-4`;
         actionMessage.textContent = text;
       };
