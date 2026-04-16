@@ -13,6 +13,7 @@ export const getProfile = async (req, res) => {
     if (userError) {
       return res.status(400).json(userError);
     }
+
     const { data: videoData, error: videoError } = await supabase
       .from("user_videos")
       .select("video_url")
@@ -23,6 +24,7 @@ export const getProfile = async (req, res) => {
     if (videoError) {
       return res.status(400).json(videoError);
     }
+
     const { data: interestData, error: interestError } = await supabase
       .from("user_interests")
       .select("interest_id")
@@ -31,15 +33,29 @@ export const getProfile = async (req, res) => {
     if (interestError) {
       return res.status(400).json(interestError);
     }
+
+    const { data: photoData, error: photoError } = await supabase
+      .from("user_photos")
+      .select("id, image_url, is_primary, created_at")
+      .eq("user_id", userId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true });
+
+    if (photoError) {
+      return res.status(400).json(photoError);
+    }
+
     const interestIds = interestData.map(item => item.interest_id);
+
     res.json({
       ...user,
       video_url: videoData?.[0]?.video_url || null,
-      interests: interestIds
+      interests: interestIds,
+      photos: photoData || []
     });
 
   } catch (err) {
-    console.error("🔥 getProfile crash:", err);
+    console.error("getProfile crash:", err);
     res.status(500).json({ error: err.message });
   }
 };
