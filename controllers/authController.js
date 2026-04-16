@@ -353,7 +353,6 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json(error);
     }
 
-    // 🧹 delete all OTPs for this email
     await supabase
       .from("otp_codes")
       .delete()
@@ -365,6 +364,59 @@ export const resetPassword = async (req, res) => {
 
   } catch (err) {
     console.error("🔥 RESET PASSWORD ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        message: "Current password and new password are required"
+      });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, password")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(current_password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Current password is incorrect"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    const { error } = await supabase
+      .from("users")
+      .update({ password: hashedPassword })
+      .eq("id", userId);
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Password changed successfully"
+    });
+
+  } catch (err) {
+    console.error("CHANGE PASSWORD ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
