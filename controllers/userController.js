@@ -1,4 +1,5 @@
 import supabase from "../config/supabase.js";
+import bcrypt from "bcryptjs";
 
 
 export const getProfile = async (req, res) => {
@@ -718,6 +719,129 @@ export const reportUser = async (req, res) => {
     });
   } catch (err) {
     console.error("reportUser error:", err);
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+};
+
+export const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { current_password, feedback_reason, feedback_note } = req.body;
+
+    if (!current_password || !String(current_password).trim()) {
+      return res.status(400).json({
+        message: "Current password is required"
+      });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, email, password")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(current_password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Current password is incorrect"
+      });
+    }
+
+    if (feedback_reason && String(feedback_reason).trim()) {
+      const { error: feedbackError } = await supabase
+        .from("account_deletion_feedback")
+        .insert([
+          {
+            user_id: userId,
+            reason: String(feedback_reason).trim(),
+            note: feedback_note ? String(feedback_note).trim() : null
+          }
+        ]);
+
+      if (feedbackError && feedbackError.code !== "42P01") {
+        return res.status(400).json(feedbackError);
+      }
+    }
+
+    const { data: matchRows, error: matchLookupError } = await supabase
+      .from("matches")
+      .select("id")
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+    if (matchLookupError) {
+      return res.status(400).json(matchLookupError);
+    }
+
+    const matchIds = (matchRows || []).map(match => match.id);
+
+    if (matchIds.length > 0) {
+      const { error: messageDeleteError } = await supabase
+        .from("messages")
+        .delete()
+        .in("match_id", matchIds);
+
+      if (messageDeleteError) {
+        return res.status(400).json(messageDeleteError);
+      }
+    }
+
+    const deleteTasks = [
+      supabase.from("blocks").delete().eq("user_id", userId),
+      supabase.from("blocks").delete().eq("blocked_user_id", userId),
+      supabase.from("discovery_preferences").delete().eq("user_id", userId),
+      supabase.from("likes").delete().eq("user_id", userId),
+      supabase.from("likes").delete().eq("liked_user_id", userId),
+      supabase.from("reports").delete().eq("reporter_id", userId),
+      supabase.from("reports").delete().eq("reported_user_id", userId),
+      supabase.from("saved_profiles").delete().eq("user_id", userId),
+      supabase.from("saved_profiles").delete().eq("saved_user_id", userId),
+      supabase.from("notifications").delete().eq("user_id", userId),
+      supabase.from("user_answers").delete().eq("user_id", userId),
+      supabase.from("user_interests").delete().eq("user_id", userId),
+      supabase.from("user_photos").delete().eq("user_id", userId),
+      supabase.from("user_push_tokens").delete().eq("user_id", userId),
+      supabase.from("user_videos").delete().eq("user_id", userId),
+      supabase.from("subscriptions").delete().eq("user_id", userId),
+      supabase.from("matches").delete().eq("user1_id", userId),
+      supabase.from("matches").delete().eq("user2_id", userId)
+    ];
+
+    if (user.email) {
+      deleteTasks.push(
+        supabase.from("otp_codes").delete().eq("email", user.email)
+      );
+    }
+
+    const results = await Promise.all(deleteTasks);
+    const failedTask = results.find(result => result.error);
+
+    if (failedTask?.error) {
+      return res.status(400).json(failedTask.error);
+    }
+
+    const { error: userDeleteError } = await supabase
+      .from("users")
+      .delete()
+      .eq("id", userId);
+
+    if (userDeleteError) {
+      return res.status(400).json(userDeleteError);
+    }
+
+    return res.json({
+      message: "Account deleted successfully"
+    });
+  } catch (err) {
+    console.error("deleteAccount error:", err);
     return res.status(500).json({
       error: err.message
     });
