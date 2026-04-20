@@ -767,7 +767,11 @@ export const deleteAccount = async (req, res) => {
           }
         ]);
 
-      if (feedbackError && feedbackError.code !== "42P01") {
+      if (
+        feedbackError &&
+        feedbackError.code !== "42P01" &&
+        feedbackError.code !== "42501"
+      ) {
         return res.status(400).json(feedbackError);
       }
     }
