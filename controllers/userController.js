@@ -1084,6 +1084,62 @@ export const uploadPhoto = async (req, res) => {
   });
 };
 
+export const submitVerification = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { document_image_url, selfie_image_url } = req.body;
+
+    if (!document_image_url || !selfie_image_url) {
+      return res.status(400).json({
+        message: "document_image_url and selfie_image_url are required"
+      });
+    }
+
+    const { error: photoError } = await supabase
+      .from("user_photos")
+      .insert([
+        {
+          user_id: userId,
+          image_url: document_image_url,
+          is_primary: false
+        },
+        {
+          user_id: userId,
+          image_url: selfie_image_url,
+          is_primary: false
+        }
+      ]);
+
+    if (photoError) {
+      return res.status(400).json(photoError);
+    }
+
+    const { data: user, error: updateError } = await supabase
+      .from("users")
+      .update({
+        is_verified: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      return res.status(400).json(updateError);
+    }
+
+    return res.json({
+      message: "Verification submitted successfully",
+      user
+    });
+  } catch (err) {
+    console.error("submitVerification error:", err);
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+};
+
 
 
 // DELETE /users/photos/{id}

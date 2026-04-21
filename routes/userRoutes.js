@@ -21,7 +21,8 @@ import {
   unblockUser,
   reportUser,
   getNearbyUsers,
-  deleteAccount
+  deleteAccount,
+  submitVerification
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -48,6 +49,7 @@ router.put("/update-location", verifyToken, updateLocation);
 router.post("/photos", verifyToken, uploadPhoto);
 router.delete("/photos/:id", verifyToken, deletePhoto);
 router.patch("/photos/:id/primary", verifyToken, setPrimaryPhoto);
+router.post("/verify-identity", verifyToken, submitVerification);
 
 export default router;
 
