@@ -37,8 +37,9 @@ export const getProfile = async (req, res) => {
 
     const { data: photoData, error: photoError } = await supabase
       .from("user_photos")
-      .select("id, image_url, is_primary, created_at")
+      .select("id, image_url, is_primary, is_public, created_at")
       .eq("user_id", userId)
+      .eq("is_public", true)
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: true });
 
@@ -124,8 +125,9 @@ export const getUserProfileById = async (req, res) => {
 
     const { data: photoRows, error: photoError } = await supabase
       .from("user_photos")
-      .select("id, image_url, is_primary, created_at")
+      .select("id, image_url, is_primary, is_public, created_at")
       .eq("user_id", profileId)
+      .eq("is_public", true)
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: true });
 
@@ -1071,7 +1073,8 @@ export const uploadPhoto = async (req, res) => {
       {
         user_id: userId,
         image_url,
-        is_primary: false
+        is_primary: false,
+        is_public: true
       }
     ])
     .select();
@@ -1101,12 +1104,14 @@ export const submitVerification = async (req, res) => {
         {
           user_id: userId,
           image_url: document_image_url,
-          is_primary: false
+          is_primary: false,
+          is_public: false
         },
         {
           user_id: userId,
           image_url: selfie_image_url,
-          is_primary: false
+          is_primary: false,
+          is_public: false
         }
       ]);
 
