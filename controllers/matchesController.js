@@ -79,3 +79,45 @@ export const getMyMatches = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
+export const unmatchUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { matchId } = req.params;
+
+    const { data: match, error: matchError } = await supabase
+      .from("matches")
+      .select("id, user1_id, user2_id, status")
+      .eq("id", matchId)
+      .eq("status", "active")
+      .single();
+
+    if (matchError || !match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    const isAllowed = match.user1_id === userId || match.user2_id === userId;
+
+    if (!isAllowed) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const { data: updatedMatch, error: updateError } = await supabase
+      .from("matches")
+      .update({ status: "unmatched" })
+      .eq("id", matchId)
+      .select("id, user1_id, user2_id, status, created_at")
+      .single();
+
+    if (updateError) {
+      return res.status(400).json(updateError);
+    }
+
+    return res.json({
+      message: "User unmatched successfully",
+      match: updatedMatch,
+    });
+  } catch (err) {
+    console.error("unmatchUser error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
