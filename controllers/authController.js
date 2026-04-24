@@ -220,6 +220,39 @@ export const login = async (req, res) => {
       });
     }
 
+    if (user.two_step_enabled === true) {
+      if (!user.email) {
+        return res.status(400).json({
+          message: "Two-step verification requires an email address"
+        });
+      }
+
+      const otp = generateOTP();
+
+      const { error: otpError } = await supabase
+        .from("otp_codes")
+        .insert([{ email: user.email, otp }]);
+
+      if (otpError) {
+        return res.status(500).json(otpError);
+      }
+
+      await sendEmail(user.email, otp);
+
+      const temporaryToken = jwt.sign(
+        { id: user.id, purpose: "two_step_login" },
+        process.env.JWT_SECRET,
+        { expiresIn: "10m" }
+      );
+
+      return res.json({
+        message: "Two-step verification required",
+        requires_two_step: true,
+        email: user.email,
+        temporary_token: temporaryToken
+      });
+    }
+
 
     const token = jwt.sign(
       { id: user.id },
@@ -238,6 +271,92 @@ export const login = async (req, res) => {
 
     res.status(500).json({
       message: "Login failed",
+      error: err.message
+    });
+  }
+};
+
+export const verifyTwoStepLogin = async (req, res) => {
+  try {
+    const { temporary_token, otp } = req.body;
+
+    if (!temporary_token || !otp) {
+      return res.status(400).json({
+        message: "Temporary token and OTP required"
+      });
+    }
+
+    let decoded;
+
+    try {
+      decoded = jwt.verify(temporary_token, process.env.JWT_SECRET);
+    } catch (tokenError) {
+      return res.status(401).json({
+        message: "Two-step session expired"
+      });
+    }
+
+    if (decoded?.purpose !== "two_step_login" || !decoded?.id) {
+      return res.status(401).json({
+        message: "Invalid two-step session"
+      });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", decoded.id)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    const { data: otpRow, error: otpError } = await supabase
+      .from("otp_codes")
+      .select("*")
+      .eq("email", user.email)
+      .eq("otp", otp)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (otpError || !otpRow) {
+      return res.status(400).json({
+        message: "Invalid OTP"
+      });
+    }
+
+    const diff = (new Date() - new Date(otpRow.created_at)) / 1000;
+
+    if (diff > 300) {
+      return res.status(400).json({
+        message: "OTP expired"
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    await supabase
+      .from("otp_codes")
+      .delete()
+      .eq("id", otpRow.id);
+
+    return res.json({
+      message: "Login successful",
+      token,
+      user
+    });
+  } catch (err) {
+    console.error("VERIFY TWO STEP LOGIN ERROR:", err);
+    return res.status(500).json({
+      message: "Two-step verification failed",
       error: err.message
     });
   }

@@ -9,13 +9,15 @@ import {
   forgotPassword,
   resetPassword,
   verifyResetOtp,
-  changePassword
+  changePassword,
+  verifyTwoStepLogin
 } from "../controllers/authController.js";
 
 const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/verify-two-step-login", verifyTwoStepLogin);
 router.post("/logout", logout);
 
 router.post("/send-otp", sendOtp);

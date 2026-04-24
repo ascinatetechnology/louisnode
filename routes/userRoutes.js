@@ -24,7 +24,11 @@ import {
   deleteAccount,
   submitVerification,
   updateProfileVisibility,
-  updateLocationAccess
+  updateLocationAccess,
+  getSecuritySettings,
+  sendTwoStepEmailCode,
+  verifyEnableTwoStep,
+  disableTwoStep
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -33,6 +37,7 @@ router.get("/me", verifyToken, getProfile);
 router.get("/saved-profiles", verifyToken, getSavedProfiles);
 router.get("/blocked-profiles", verifyToken, getBlockedProfiles);
 router.get("/nearby", verifyToken, getNearbyUsers);
+router.get("/security", verifyToken, getSecuritySettings);
 router.post("/delete-account", verifyToken, deleteAccount);
 router.post("/save-profile", verifyToken, saveProfile);
 router.delete("/save-profile/:savedUserId", verifyToken, removeSavedProfile);
@@ -43,6 +48,9 @@ router.delete("/block-user/:blockedUserId", verifyToken, unblockUser);
 router.post("/report-user", verifyToken, reportUser);
 router.patch("/profile-visibility", verifyToken, updateProfileVisibility);
 router.patch("/location-access", verifyToken, updateLocationAccess);
+router.post("/two-step/send-email-code", verifyToken, sendTwoStepEmailCode);
+router.post("/two-step/verify-enable", verifyToken, verifyEnableTwoStep);
+router.post("/two-step/disable", verifyToken, disableTwoStep);
 
 router.post("/save-answers", verifyToken, saveAnswers);
 

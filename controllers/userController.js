@@ -1,5 +1,7 @@
 import supabase from "../config/supabase.js";
 import bcrypt from "bcryptjs";
+import { generateOTP } from "../utils/otp.js";
+import { sendEmail } from "../config/emailService.js";
 
 
 export const getProfile = async (req, res) => {
@@ -1187,6 +1189,177 @@ export const updateLocationAccess = async (req, res) => {
     return res.status(500).json({
       error: err.message
     });
+  }
+};
+
+export const getSecuritySettings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, email, two_step_enabled")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      email: data.email,
+      two_step_enabled: data.two_step_enabled === true
+    });
+  } catch (err) {
+    console.error("getSecuritySettings error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const sendTwoStepEmailCode = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, email")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({
+        message: "Email is required for two-step verification"
+      });
+    }
+
+    const otp = generateOTP();
+
+    const { error: otpError } = await supabase
+      .from("otp_codes")
+      .insert([{ email: user.email, otp }]);
+
+    if (otpError) {
+      return res.status(500).json(otpError);
+    }
+
+    await sendEmail(user.email, otp);
+
+    return res.json({
+      message: "Verification code sent",
+      email: user.email
+    });
+  } catch (err) {
+    console.error("sendTwoStepEmailCode error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const verifyEnableTwoStep = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { otp } = req.body;
+
+    if (!otp) {
+      return res.status(400).json({
+        message: "OTP is required"
+      });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, email")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    const { data: otpRow, error: otpError } = await supabase
+      .from("otp_codes")
+      .select("*")
+      .eq("email", user.email)
+      .eq("otp", otp)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (otpError || !otpRow) {
+      return res.status(400).json({
+        message: "Invalid OTP"
+      });
+    }
+
+    const diff = (new Date() - new Date(otpRow.created_at)) / 1000;
+
+    if (diff > 300) {
+      return res.status(400).json({
+        message: "OTP expired"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        two_step_enabled: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId)
+      .select("id, email, two_step_enabled")
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    await supabase
+      .from("otp_codes")
+      .delete()
+      .eq("id", otpRow.id);
+
+    return res.json({
+      message: "Two-step verification enabled",
+      user: data
+    });
+  } catch (err) {
+    console.error("verifyEnableTwoStep error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const disableTwoStep = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        two_step_enabled: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId)
+      .select("id, email, two_step_enabled")
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Two-step verification disabled",
+      user: data
+    });
+  } catch (err) {
+    console.error("disableTwoStep error:", err);
+    return res.status(500).json({ error: err.message });
   }
 };
 
