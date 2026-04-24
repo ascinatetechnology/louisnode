@@ -29,7 +29,7 @@ export const getNotificationPreferences = async (req, res) => {
 
     const { data, error } = await supabase
       .from("users")
-      .select("notify_new_matches, notify_messages")
+      .select("notify_new_matches, notify_messages, notify_likes")
       .eq("id", userId)
       .single();
 
@@ -40,6 +40,7 @@ export const getNotificationPreferences = async (req, res) => {
     return res.json({
       notify_new_matches: data?.notify_new_matches !== false,
       notify_messages: data?.notify_messages !== false,
+      notify_likes: data?.notify_likes !== false,
     });
   } catch (err) {
     console.error("getNotificationPreferences error:", err);
@@ -50,14 +51,15 @@ export const getNotificationPreferences = async (req, res) => {
 export const updateNotificationPreferences = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { notify_new_matches, notify_messages } = req.body;
+    const { notify_new_matches, notify_messages, notify_likes } = req.body;
 
     if (
       typeof notify_new_matches !== "boolean" ||
-      typeof notify_messages !== "boolean"
+      typeof notify_messages !== "boolean" ||
+      typeof notify_likes !== "boolean"
     ) {
       return res.status(400).json({
-        message: "notify_new_matches and notify_messages must be true or false",
+        message: "notify_new_matches, notify_messages, and notify_likes must be true or false",
       });
     }
 
@@ -66,10 +68,11 @@ export const updateNotificationPreferences = async (req, res) => {
       .update({
         notify_new_matches,
         notify_messages,
+        notify_likes,
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId)
-      .select("id, notify_new_matches, notify_messages")
+      .select("id, notify_new_matches, notify_messages, notify_likes")
       .single();
 
     if (error) {

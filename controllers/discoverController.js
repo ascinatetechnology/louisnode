@@ -1,5 +1,5 @@
 import supabase from "../config/supabase.js";
-import { createMatchNotifications } from "../services/notificationService.js";
+import { createLikeNotification, createMatchNotifications } from "../services/notificationService.js";
 
 // GET /discover/preferences
 export const getDiscoveryPreferences = async (req, res) => {
@@ -379,6 +379,12 @@ export const swipeUser = async (req, res) => {
         match
       });
     }
+
+    await createLikeNotification({
+      likerUserId: userId,
+      likedUserId: target_user_id,
+      likerName: currentUser.name
+    });
 
     return res.json({
       message: "Liked successfully"

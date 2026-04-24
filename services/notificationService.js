@@ -19,7 +19,7 @@ export const getActivePushTokensByUserId = async (userId) => {
 export const getNotificationsByUserId = async (userId) => {
   const { data, error } = await supabase
     .from("notifications")
-    .select("id, user_id, type, message, is_read, created_at")
+    .select("id, user_id, type, message, metadata, is_read, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -38,7 +38,7 @@ export const createNotification = async ({
 }) => {
   const { data: preferences, error: preferenceError } = await supabase
     .from("users")
-    .select("notify_new_matches, notify_messages")
+    .select("notify_new_matches, notify_messages, notify_likes")
     .eq("id", userId)
     .single();
 
@@ -54,6 +54,10 @@ export const createNotification = async ({
     return null;
   }
 
+  if (type === "like" && preferences?.notify_likes === false) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("notifications")
     .insert([
@@ -61,9 +65,10 @@ export const createNotification = async ({
         user_id: userId,
         type,
         message,
+        metadata,
       },
     ])
-    .select("id, user_id, type, message, is_read, created_at")
+    .select("id, user_id, type, message, metadata, is_read, created_at")
     .single();
 
   if (error) {
@@ -95,7 +100,7 @@ export const markNotificationReadById = async (notificationId, userId) => {
     .update({ is_read: true })
     .eq("id", notificationId)
     .eq("user_id", userId)
-    .select("id, user_id, type, message, is_read, created_at")
+    .select("id, user_id, type, message, metadata, is_read, created_at")
     .maybeSingle();
 
   if (error) {
@@ -171,6 +176,21 @@ export const createMessageNotification = async ({
       match_id: matchId,
       sender_id: senderId,
       media_url: mediaUrl,
+    },
+  });
+};
+
+export const createLikeNotification = async ({
+  likerUserId,
+  likedUserId,
+  likerName,
+}) => {
+  return createNotification({
+    userId: likedUserId,
+    type: "like",
+    message: `${likerName || "Someone"} liked your profile`,
+    metadata: {
+      liker_user_id: likerUserId,
     },
   });
 };
