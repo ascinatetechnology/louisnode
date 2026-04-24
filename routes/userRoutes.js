@@ -23,7 +23,8 @@ import {
   getNearbyUsers,
   deleteAccount,
   submitVerification,
-  updateProfileVisibility
+  updateProfileVisibility,
+  updateLocationAccess
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -41,6 +42,7 @@ router.post("/block-user", verifyToken, blockUser);
 router.delete("/block-user/:blockedUserId", verifyToken, unblockUser);
 router.post("/report-user", verifyToken, reportUser);
 router.patch("/profile-visibility", verifyToken, updateProfileVisibility);
+router.patch("/location-access", verifyToken, updateLocationAccess);
 
 router.post("/save-answers", verifyToken, saveAnswers);
 

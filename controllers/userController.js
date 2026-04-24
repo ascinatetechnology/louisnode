@@ -223,13 +223,19 @@ export const getNearbyUsers = async (req, res) => {
 
     const { data: currentUser, error: currentUserError } = await supabase
       .from("users")
-      .select("id, gender, match_gender")
+      .select("id, gender, match_gender, location_enabled")
       .eq("id", userId)
       .single();
 
     if (currentUserError || !currentUser) {
       return res.status(404).json({
         message: "Current user not found"
+      });
+    }
+
+    if (currentUser.location_enabled === false) {
+      return res.status(403).json({
+        message: "Location access is turned off"
       });
     }
 
@@ -258,6 +264,7 @@ export const getNearbyUsers = async (req, res) => {
         profile_image,
         latitude,
         longitude,
+        location_enabled,
         profile_visibility,
         profile_visibility_mode,
         is_banned,
@@ -267,6 +274,7 @@ export const getNearbyUsers = async (req, res) => {
       `)
       .neq("id", userId)
       .eq("profile_visibility", true)
+      .eq("location_enabled", true)
       .eq("is_banned", false)
       .neq("moderation_status", "removed")
       .not("latitude", "is", null)
@@ -1057,6 +1065,24 @@ export const updateLocation = async (req, res) => {
       });
     }
 
+    const { data: currentUser, error: currentUserError } = await supabase
+      .from("users")
+      .select("id, location_enabled")
+      .eq("id", userId)
+      .single();
+
+    if (currentUserError || !currentUser) {
+      return res.status(404).json({
+        message: "Current user not found"
+      });
+    }
+
+    if (currentUser.location_enabled === false) {
+      return res.status(403).json({
+        message: "Location access is turned off"
+      });
+    }
+
     const { data, error } = await supabase
       .from("users")
       .update({
@@ -1109,6 +1135,59 @@ export const uploadPhoto = async (req, res) => {
     message: "Photo uploaded Successfull",
     data
   });
+};
+
+export const updateLocationAccess = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { location_enabled, latitude, longitude } = req.body;
+
+    if (typeof location_enabled !== "boolean") {
+      return res.status(400).json({
+        message: "location_enabled must be true or false"
+      });
+    }
+
+    const updateData = {
+      location_enabled,
+      updated_at: new Date().toISOString()
+    };
+
+    if (location_enabled) {
+      if (latitude === undefined || longitude === undefined) {
+        return res.status(400).json({
+          message: "Latitude and longitude are required when location is enabled"
+        });
+      }
+
+      updateData.latitude = latitude;
+      updateData.longitude = longitude;
+    } else {
+      updateData.latitude = null;
+      updateData.longitude = null;
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", userId)
+      .select("id, location_enabled, latitude, longitude")
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Location access updated successfully",
+      user: data
+    });
+  } catch (err) {
+    console.error("updateLocationAccess error:", err);
+    return res.status(500).json({
+      error: err.message
+    });
+  }
 };
 
 export const updateProfileVisibility = async (req, res) => {
