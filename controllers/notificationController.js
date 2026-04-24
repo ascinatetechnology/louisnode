@@ -5,6 +5,7 @@ import {
   markNotificationReadById,
   savePushToken,
 } from "../services/notificationService.js";
+import supabase from "../config/supabase.js";
 
 export const getNotifications = async (req, res) => {
   try {
@@ -18,6 +19,69 @@ export const getNotifications = async (req, res) => {
     });
   } catch (err) {
     console.error("getNotifications error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const getNotificationPreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("notify_new_matches, notify_messages")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      notify_new_matches: data?.notify_new_matches !== false,
+      notify_messages: data?.notify_messages !== false,
+    });
+  } catch (err) {
+    console.error("getNotificationPreferences error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+export const updateNotificationPreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { notify_new_matches, notify_messages } = req.body;
+
+    if (
+      typeof notify_new_matches !== "boolean" ||
+      typeof notify_messages !== "boolean"
+    ) {
+      return res.status(400).json({
+        message: "notify_new_matches and notify_messages must be true or false",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        notify_new_matches,
+        notify_messages,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select("id, notify_new_matches, notify_messages")
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Notification preferences updated successfully",
+      preferences: data,
+    });
+  } catch (err) {
+    console.error("updateNotificationPreferences error:", err);
     return res.status(500).json({ error: err.message });
   }
 };

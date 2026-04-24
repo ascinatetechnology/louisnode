@@ -36,6 +36,24 @@ export const createNotification = async ({
   message,
   metadata = {},
 }) => {
+  const { data: preferences, error: preferenceError } = await supabase
+    .from("users")
+    .select("notify_new_matches, notify_messages")
+    .eq("id", userId)
+    .single();
+
+  if (preferenceError) {
+    throw new Error(preferenceError.message);
+  }
+
+  if (type === "match" && preferences?.notify_new_matches === false) {
+    return null;
+  }
+
+  if (type === "message" && preferences?.notify_messages === false) {
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("notifications")
     .insert([
@@ -109,7 +127,7 @@ export const createMatchNotifications = async ({
   user1Name,
   user2Name,
 }) => {
-  return Promise.all([
+  const results = await Promise.all([
     createNotification({
       userId: user1Id,
       type: "match",
@@ -129,6 +147,8 @@ export const createMatchNotifications = async ({
       },
     }),
   ]);
+
+  return results.filter(Boolean);
 };
 
 export const createMessageNotification = async ({
