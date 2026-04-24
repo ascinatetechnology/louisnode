@@ -22,7 +22,8 @@ import {
   reportUser,
   getNearbyUsers,
   deleteAccount,
-  submitVerification
+  submitVerification,
+  updateProfileVisibility
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.put("/update-profile", verifyToken, updateProfile);
 router.post("/block-user", verifyToken, blockUser);
 router.delete("/block-user/:blockedUserId", verifyToken, unblockUser);
 router.post("/report-user", verifyToken, reportUser);
+router.patch("/profile-visibility", verifyToken, updateProfileVisibility);
 
 router.post("/save-answers", verifyToken, saveAnswers);
 

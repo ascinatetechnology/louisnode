@@ -103,6 +103,21 @@ export const getUserProfileById = async (req, res) => {
       });
     }
 
+    if (user.profile_visibility_mode === "liked" && viewerId !== user.id) {
+      const { data: likedViewer } = await supabase
+        .from("likes")
+        .select("id")
+        .eq("user_id", profileId)
+        .eq("liked_user_id", viewerId)
+        .maybeSingle();
+
+      if (!likedViewer) {
+        return res.status(404).json({
+          message: "Profile not available"
+        });
+      }
+    }
+
     if (
       viewerId !== user.id &&
       (user.is_banned === true || user.moderation_status === "removed")
@@ -225,6 +240,13 @@ export const getNearbyUsers = async (req, res) => {
 
     const blockedUserIds = (blockedRows || []).map(item => item.blocked_user_id);
 
+    const { data: likedMeRows } = await supabase
+      .from("likes")
+      .select("user_id")
+      .eq("liked_user_id", userId);
+
+    const usersWhoLikedMe = (likedMeRows || []).map(item => item.user_id);
+
     const { data: users, error } = await supabase
       .from("users")
       .select(`
@@ -237,6 +259,7 @@ export const getNearbyUsers = async (req, res) => {
         latitude,
         longitude,
         profile_visibility,
+        profile_visibility_mode,
         is_banned,
         moderation_status,
         location,
@@ -255,6 +278,7 @@ export const getNearbyUsers = async (req, res) => {
 
     const filteredUsers = (users || [])
       .filter(user => !blockedUserIds.includes(user.id))
+      .filter(user => user.profile_visibility_mode !== "liked" || usersWhoLikedMe.includes(user.id))
       .filter(user => {
         const iMatchUser =
           !currentUser.match_gender ||
@@ -1085,6 +1109,51 @@ export const uploadPhoto = async (req, res) => {
     message: "Photo uploaded Successfull",
     data
   });
+};
+
+export const updateProfileVisibility = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { profile_visibility, visibility_mode } = req.body;
+    const allowedModes = ["everyone", "liked", "hidden"];
+
+    if (typeof profile_visibility !== "boolean") {
+      return res.status(400).json({
+        message: "profile_visibility must be true or false"
+      });
+    }
+
+    if (!allowedModes.includes(visibility_mode)) {
+      return res.status(400).json({
+        message: "visibility_mode must be everyone, liked, or hidden"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        profile_visibility,
+        profile_visibility_mode: visibility_mode,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId)
+      .select("id, profile_visibility, profile_visibility_mode")
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Profile visibility updated successfully",
+      user: data
+    });
+  } catch (err) {
+    console.error("updateProfileVisibility error:", err);
+    return res.status(500).json({
+      error: err.message
+    });
+  }
 };
 
 export const submitVerification = async (req, res) => {

@@ -140,6 +140,13 @@ export const getDiscoverUsers = async (req, res) => {
 
     const blockedIds = blockedUsers?.map(item => item.blocked_user_id) || [];
 
+    const { data: likedMeRows } = await supabase
+      .from("likes")
+      .select("user_id")
+      .eq("liked_user_id", userId);
+
+    const usersWhoLikedMe = likedMeRows?.map(item => item.user_id) || [];
+
     const { data: matches } = await supabase
       .from("matches")
       .select("user1_id, user2_id")
@@ -187,7 +194,8 @@ export const getDiscoverUsers = async (req, res) => {
         age <= ageMax &&
         !likedIds.includes(user.id) &&
         !blockedIds.includes(user.id) &&
-        !matchedIds.includes(user.id)
+        !matchedIds.includes(user.id) &&
+        (user.profile_visibility_mode !== "liked" || usersWhoLikedMe.includes(user.id))
       );
     });
 
