@@ -1,0 +1,342 @@
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  const actionMessage = document.getElementById("actionMessage");
+  const reportsTableBody = document.getElementById("reportsTableBody");
+  const flaggedProfilesList = document.getElementById("flaggedProfilesList");
+  const usersTableBody = document.getElementById("usersTableBody");
+  const openReportsValue = document.getElementById("openReportsValue");
+  const bannedUsersValue = document.getElementById("bannedUsersValue");
+  const removedProfilesValue = document.getElementById("removedProfilesValue");
+  const escalatedCasesValue = document.getElementById("escalatedCasesValue");
+  let loadedUsers = [];
+
+  const showMessage = (text, type = "success") => {
+    if (window.Swal) {
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: type === "danger" ? "error" : type,
+        title: text || "Action complete",
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
+      return;
+    }
+
+    actionMessage.className = `alert alert-${type} mt-4`;
+    actionMessage.textContent = text;
+  };
+
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
+  const requestJson = async (url, options = {}) => {
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      },
+      credentials: "same-origin",
+      ...options
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || "Request failed");
+    }
+
+    return data;
+  };
+
+  document.querySelectorAll(".nav-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      document.querySelectorAll(".nav-btn").forEach(item => item.classList.remove("active"));
+      document.querySelectorAll(".view-section").forEach(item => item.classList.remove("active"));
+      button.classList.add("active");
+      document.getElementById(`${button.dataset.view}View`).classList.add("active");
+
+      if (button.dataset.view === "users" && loadedUsers.length === 0) {
+        await loadUsers();
+      }
+    });
+  });
+
+  const renderSummary = (summary) => {
+    openReportsValue.textContent = summary.open_reports ?? 0;
+    bannedUsersValue.textContent = summary.banned_users ?? 0;
+    removedProfilesValue.textContent = summary.abusive_profiles_removed ?? 0;
+    escalatedCasesValue.textContent = summary.escalated_cases ?? 0;
+  };
+
+  const renderReports = (reports) => {
+    if (!reports || reports.length === 0) {
+      reportsTableBody.innerHTML = `<tr><td colspan="4" class="empty-state">No reports available yet.</td></tr>`;
+      return;
+    }
+
+    reportsTableBody.innerHTML = reports.map((report) => `
+      <tr>
+        <td>
+          <div class="fw-bold">${escapeHtml(report.report_id)}</div>
+          <div class="small text-secondary text-capitalize">${escapeHtml(String(report.status || "").replaceAll("_", " "))}</div>
+        </td>
+        <td>
+          <div class="fw-bold">${escapeHtml(report.reported_name)}</div>
+          <div class="small text-secondary">${escapeHtml(report.reported_user_id)}</div>
+        </td>
+        <td>
+          <span class="status-chip mb-2">${escapeHtml(report.severity)} priority</span>
+          <div class="small">${escapeHtml(report.reason)}</div>
+        </td>
+        <td>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="action-btn danger-btn" onclick="moderateUser('${escapeHtml(report.reported_user_id)}', 'ban')">Ban</button>
+            <button class="action-btn success-btn" onclick="moderateUser('${escapeHtml(report.reported_user_id)}', 'unban')">Unban</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  };
+
+  const renderFlaggedProfiles = (profiles) => {
+    if (!profiles || profiles.length === 0) {
+      flaggedProfilesList.innerHTML = `<div class="profile-card"><div class="profile-meta">No flagged profiles yet.</div></div>`;
+      return;
+    }
+
+    flaggedProfilesList.innerHTML = profiles.map((profile) => `
+      <div class="profile-card">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="fw-bold fs-5">${escapeHtml(profile.name)}</div>
+            <div class="profile-meta mt-1">${escapeHtml(profile.user_id)}</div>
+          </div>
+          <span class="status-chip">${escapeHtml(profile.action_suggested)}</span>
+        </div>
+        <p class="profile-meta mt-3 mb-3">${escapeHtml(profile.issue)}${profile.report_count ? ` (${escapeHtml(profile.report_count)} reports)` : ""}</p>
+        <button class="action-btn neutral-btn" onclick="removeProfile('${escapeHtml(profile.user_id)}')">Remove Abusive Profile</button>
+      </div>
+    `).join("");
+  };
+
+  const refreshDashboard = async (showToast = false) => {
+    try {
+      const data = await requestJson("/admin/reports/dashboard");
+      renderSummary(data.summary || {});
+      renderReports(data.reports || []);
+      renderFlaggedProfiles(data.flagged_profiles || []);
+
+      if (showToast) {
+        showMessage(`${data.message}. Open reports: ${data.summary.open_reports}`, "info");
+      }
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
+  };
+
+  window.moderateUser = async (userId, action) => {
+    const endpoint = action === "ban" ? `/admin/users/${userId}/ban` : `/admin/users/${userId}/unban`;
+
+    try {
+      const data = await requestJson(endpoint, {
+        method: "PATCH",
+        body: JSON.stringify({ reason: `Admin ${action} action from dashboard` })
+      });
+      showMessage(data.message, "success");
+      await refreshDashboard(false);
+      await loadUsers(false);
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
+  };
+
+  window.removeProfile = async (userId) => {
+    try {
+      const data = await requestJson(`/admin/users/${userId}/remove-profile`, {
+        method: "DELETE",
+        body: JSON.stringify({ reason: "Abusive profile removal from dashboard" })
+      });
+      showMessage(data.message, "warning");
+      await refreshDashboard(false);
+      await loadUsers(false);
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
+  };
+
+  const renderUsers = (users) => {
+    if (!users || users.length === 0) {
+      usersTableBody.innerHTML = `<tr><td colspan="4" class="empty-state">No users found.</td></tr>`;
+      return;
+    }
+
+    usersTableBody.innerHTML = users.map((user) => `
+      <tr>
+        <td>
+          <div class="fw-bold">${escapeHtml(user.name || "Unnamed User")}</div>
+          <div class="small text-secondary">${escapeHtml(user.email || user.phone || user.id)}</div>
+        </td>
+        <td>
+          <div class="small">${escapeHtml(user.gender || "No gender")} seeking ${escapeHtml(user.match_gender || "any")}</div>
+          <div class="small text-secondary">${escapeHtml(user.location || "No location")}</div>
+        </td>
+        <td>
+          <span class="status-chip">${escapeHtml(user.moderation_status || "active")}</span>
+          ${user.is_banned ? `<span class="status-chip ms-1">banned</span>` : ""}
+        </td>
+        <td>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="action-btn neutral-btn" onclick="editUser('${escapeHtml(user.id)}')">Edit</button>
+            <button class="action-btn ${user.is_banned ? "success-btn" : "danger-btn"}" onclick="moderateUser('${escapeHtml(user.id)}', '${user.is_banned ? "unban" : "ban"}')">${user.is_banned ? "Unban" : "Ban"}</button>
+            <button class="action-btn danger-btn" onclick="deleteUser('${escapeHtml(user.id)}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  };
+
+  const loadUsers = async (showToast = false) => {
+    try {
+      const search = document.getElementById("userSearch").value.trim();
+      const data = await requestJson(`/admin/users${search ? `?search=${encodeURIComponent(search)}` : ""}`);
+      loadedUsers = data.users || [];
+      renderUsers(loadedUsers);
+
+      if (showToast) {
+        showMessage("Users refreshed", "success");
+      }
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
+  };
+
+  const resetUserForm = () => {
+    document.getElementById("userFormTitle").textContent = "Create User";
+    document.getElementById("editingUserId").value = "";
+    document.getElementById("userForm").reset();
+    document.getElementById("visibleInput").checked = true;
+    document.getElementById("visibilityModeInput").value = "everyone";
+  };
+
+  window.editUser = (userId) => {
+    const user = loadedUsers.find(item => item.id === userId);
+
+    if (!user) return;
+
+    document.getElementById("userFormTitle").textContent = "Edit User";
+    document.getElementById("editingUserId").value = user.id;
+    document.getElementById("nameInput").value = user.name || "";
+    document.getElementById("emailInput").value = user.email || "";
+    document.getElementById("phoneInput").value = user.phone || "";
+    document.getElementById("passwordInput").value = "";
+    document.getElementById("dobInput").value = user.dob || "";
+    document.getElementById("genderInput").value = user.gender || "";
+    document.getElementById("matchGenderInput").value = user.match_gender || "";
+    document.getElementById("visibilityModeInput").value = user.profile_visibility_mode || "everyone";
+    document.getElementById("locationInput").value = user.location || "";
+    document.getElementById("bioInput").value = user.bio || "";
+    document.getElementById("profileImageInput").value = user.profile_image || "";
+    document.getElementById("verifiedInput").checked = user.is_verified === true;
+    document.getElementById("visibleInput").checked = user.profile_visibility !== false;
+  };
+
+  const getUserPayload = () => {
+    const payload = {
+      name: document.getElementById("nameInput").value,
+      email: document.getElementById("emailInput").value,
+      phone: document.getElementById("phoneInput").value,
+      password: document.getElementById("passwordInput").value,
+      dob: document.getElementById("dobInput").value,
+      gender: document.getElementById("genderInput").value,
+      match_gender: document.getElementById("matchGenderInput").value,
+      profile_visibility_mode: document.getElementById("visibilityModeInput").value,
+      location: document.getElementById("locationInput").value,
+      bio: document.getElementById("bioInput").value,
+      profile_image: document.getElementById("profileImageInput").value,
+      is_verified: document.getElementById("verifiedInput").checked,
+      profile_visibility: document.getElementById("visibleInput").checked
+    };
+
+    if (!payload.password) {
+      delete payload.password;
+    }
+
+    return payload;
+  };
+
+  document.getElementById("userForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const userId = document.getElementById("editingUserId").value;
+    const isEditing = Boolean(userId);
+
+    try {
+      const data = await requestJson(isEditing ? `/admin/users/${userId}` : "/admin/users", {
+        method: isEditing ? "PATCH" : "POST",
+        body: JSON.stringify(getUserPayload())
+      });
+
+      showMessage(data.message, "success");
+      resetUserForm();
+      await loadUsers(false);
+      await refreshDashboard(false);
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
+  });
+
+  window.deleteUser = async (userId) => {
+    const result = window.Swal
+      ? await Swal.fire({
+          title: "Delete this user?",
+          text: "This removes the user and connected app records.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Delete"
+        })
+      : { isConfirmed: window.confirm("Delete this user?") };
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const data = await requestJson(`/admin/users/${userId}`, { method: "DELETE" });
+      showMessage(data.message, "success");
+      resetUserForm();
+      await loadUsers(false);
+      await refreshDashboard(false);
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
+  };
+
+  document.getElementById("refreshReports").addEventListener("click", async () => refreshDashboard(true));
+  document.getElementById("searchUsersBtn").addEventListener("click", async () => loadUsers(true));
+  document.getElementById("newUserBtn").addEventListener("click", resetUserForm);
+  document.getElementById("resetUserFormBtn").addEventListener("click", resetUserForm);
+  document.getElementById("userSearch").addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await loadUsers(true);
+    }
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    try {
+      const data = await requestJson("/admin/logout", { method: "POST" });
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
+      showMessage(data.message, "success");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
+    } catch (error) {
+      showMessage(error.message, "danger");
+    }
+  });
+</script>

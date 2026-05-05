@@ -5,6 +5,11 @@ import {
   adminLogout,
   renderAdminDashboard,
   getAdminReportDashboard,
+  listAdminUsers,
+  getAdminUser,
+  createAdminUser,
+  updateAdminUser,
+  deleteAdminUser,
   banUser,
   unbanUser,
   removeAbusiveProfile
@@ -16,6 +21,11 @@ router.post("/login", adminLogin);
 router.post("/logout", adminLogout);
 router.get("/dashboard", verifyAdminPage, renderAdminDashboard);
 router.get("/reports/dashboard", verifyAdminToken, getAdminReportDashboard);
+router.get("/users", verifyAdminToken, listAdminUsers);
+router.post("/users", verifyAdminToken, createAdminUser);
+router.get("/users/:userId", verifyAdminToken, getAdminUser);
+router.patch("/users/:userId", verifyAdminToken, updateAdminUser);
+router.delete("/users/:userId", verifyAdminToken, deleteAdminUser);
 router.patch("/users/:userId/ban", verifyAdminToken, banUser);
 router.patch("/users/:userId/unban", verifyAdminToken, unbanUser);
 router.delete("/users/:userId/remove-profile", verifyAdminToken, removeAbusiveProfile);

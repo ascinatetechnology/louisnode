@@ -1,0 +1,131 @@
+<section id="usersView" class="view-section">
+  <div class="topbar">
+    <div>
+      <h1 class="page-title">User Management</h1>
+      <p class="page-copy">Create, update, search, and delete app users.</p>
+    </div>
+    <button id="newUserBtn" class="solid-btn">New User</button>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-8">
+      <div class="glass-card panel-card">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Users</h2>
+            <p class="panel-copy mb-0">Latest 100 users from the app database.</p>
+          </div>
+          <div class="d-flex gap-2 w-100 w-md-auto">
+            <input id="userSearch" class="form-control" placeholder="Search name, email, phone" />
+            <button id="searchUsersBtn" class="action-btn neutral-btn">Search</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Profile</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr>
+                <td colspan="4" class="empty-state">Loading users...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="glass-card panel-card">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title" id="userFormTitle">Create User</h2>
+            <p class="panel-copy mb-0">Password is required for new users only.</p>
+          </div>
+        </div>
+        <form id="userForm" class="row g-3">
+          <input type="hidden" id="editingUserId" />
+          <div class="col-12">
+            <label class="form-label" for="nameInput">Name</label>
+            <input id="nameInput" class="form-control" />
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="emailInput">Email</label>
+            <input id="emailInput" class="form-control" type="email" />
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="phoneInput">Phone</label>
+            <input id="phoneInput" class="form-control" />
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="passwordInput">Password</label>
+            <input id="passwordInput" class="form-control" type="password" autocomplete="new-password" />
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="dobInput">DOB</label>
+            <input id="dobInput" class="form-control" type="date" />
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="genderInput">Gender</label>
+            <select id="genderInput" class="form-select">
+              <option value="">Select</option>
+              <option value="MALE">MALE</option>
+              <option value="FEMALE">FEMALE</option>
+              <option value="BOTH">BOTH</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="matchGenderInput">Match Gender</label>
+            <select id="matchGenderInput" class="form-select">
+              <option value="">Select</option>
+              <option value="MALE">MALE</option>
+              <option value="FEMALE">FEMALE</option>
+              <option value="BOTH">BOTH</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="visibilityModeInput">Visibility</label>
+            <select id="visibilityModeInput" class="form-select">
+              <option value="everyone">Everyone</option>
+              <option value="liked">Liked</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="locationInput">Location</label>
+            <input id="locationInput" class="form-control" />
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="bioInput">Bio</label>
+            <textarea id="bioInput" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="profileImageInput">Profile Image URL</label>
+            <input id="profileImageInput" class="form-control" />
+          </div>
+          <div class="col-6">
+            <div class="form-check">
+              <input id="verifiedInput" class="form-check-input" type="checkbox" />
+              <label class="form-check-label" for="verifiedInput">Verified</label>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="form-check">
+              <input id="visibleInput" class="form-check-input" type="checkbox" checked />
+              <label class="form-check-label" for="visibleInput">Profile visible</label>
+            </div>
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button class="solid-btn" type="submit">Save User</button>
+            <button id="resetUserFormBtn" class="action-btn neutral-btn" type="button">Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>

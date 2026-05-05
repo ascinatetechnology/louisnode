@@ -1,0 +1,103 @@
+<section id="moderationView" class="view-section active">
+  <div class="topbar">
+    <div>
+      <h1 class="page-title">Moderation</h1>
+      <p class="page-copy">Review reports, ban users, unban users, and remove abusive profiles.</p>
+    </div>
+    <button id="refreshReports" class="solid-btn">Refresh Reports</button>
+  </div>
+
+  <div class="metric-grid">
+    <div class="glass-card metric-card">
+      <div class="metric-label">Open Reports</div>
+      <div class="metric-value" id="openReportsValue"><%= summary.open_reports %></div>
+    </div>
+    <div class="glass-card metric-card">
+      <div class="metric-label">Banned Users</div>
+      <div class="metric-value" id="bannedUsersValue"><%= summary.banned_users %></div>
+    </div>
+    <div class="glass-card metric-card">
+      <div class="metric-label">Removed Profiles</div>
+      <div class="metric-value" id="removedProfilesValue"><%= summary.abusive_profiles_removed %></div>
+    </div>
+    <div class="glass-card metric-card">
+      <div class="metric-label">Escalated Cases</div>
+      <div class="metric-value" id="escalatedCasesValue"><%= summary.escalated_cases %></div>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-xl-7">
+      <div class="glass-card panel-card">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Reported Users</h2>
+            <p class="panel-copy mb-0">Recent reports surfaced for quick action.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>User</th>
+                <th>Issue</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTableBody">
+              <% reports.forEach(function(report) { %>
+              <tr>
+                <td>
+                  <div class="fw-bold"><%= report.report_id %></div>
+                  <div class="small text-secondary text-capitalize"><%= report.status.replace("_", " ") %></div>
+                </td>
+                <td>
+                  <div class="fw-bold"><%= report.reported_name %></div>
+                  <div class="small text-secondary"><%= report.reported_user_id %></div>
+                </td>
+                <td>
+                  <span class="status-chip mb-2"><%= report.severity %> priority</span>
+                  <div class="small"><%= report.reason %></div>
+                </td>
+                <td>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button class="action-btn danger-btn" onclick="moderateUser('<%= report.reported_user_id %>', 'ban')">Ban</button>
+                    <button class="action-btn success-btn" onclick="moderateUser('<%= report.reported_user_id %>', 'unban')">Unban</button>
+                  </div>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+      <div class="glass-card panel-card">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Flagged Profiles</h2>
+            <p class="panel-copy mb-0">Profiles likely needing direct intervention.</p>
+          </div>
+        </div>
+        <div class="d-flex flex-column gap-3" id="flaggedProfilesList">
+          <% flaggedProfiles.forEach(function(profile) { %>
+          <div class="profile-card">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <div class="fw-bold fs-5"><%= profile.name %></div>
+                <div class="profile-meta mt-1"><%= profile.user_id %></div>
+              </div>
+              <span class="status-chip"><%= profile.action_suggested %></span>
+            </div>
+            <p class="profile-meta mt-3 mb-3"><%= profile.issue %></p>
+            <button class="action-btn neutral-btn" onclick="removeProfile('<%= profile.user_id %>')">Remove Abusive Profile</button>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
