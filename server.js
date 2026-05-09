@@ -15,7 +15,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 
 import { registerChatSocket } from "./socket/chatSocket.js";
 import { registerNotificationSocket } from "./socket/notificationSocket.js";
-
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 const app = express();
 
 app.use(cors());
@@ -34,6 +34,7 @@ app.use("/discover", discoverRoutes);
 app.use("/matches", matchesRoutes);
 app.use("/chat", chatRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/subscription", subscriptionRoutes);
 app.use("/admin", adminRoutes);
 
 const server = http.createServer(app);
