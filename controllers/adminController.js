@@ -806,3 +806,123 @@ export const removeAbusiveProfile = async (req, res) => {
     });
   }
 };
+
+export const getSubscriptionPlans = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      plans: data || []
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message
+    });
+  }
+};
+
+export const createSubscriptionPlan = async (req, res) => {
+  try {
+
+    const {
+      name,
+      description,
+      price,
+      billing_cycle,
+      features
+    } = req.body;
+
+    const { data, error } = await supabase
+      .from("subscription_plans")
+      .insert([
+        {
+          name,
+          description,
+          price,
+          billing_cycle,
+          features,
+          is_active: true
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.status(201).json({
+      plan: data
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message
+    });
+  }
+};
+
+export const updateSubscriptionPlan = async (req, res) => {
+  try {
+
+    const planId = req.params.planId;
+
+    const payload = {
+      ...req.body,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from("subscription_plans")
+      .update(payload)
+      .eq("id", planId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      plan: data
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message
+    });
+  }
+};
+
+export const deleteSubscriptionPlan = async (req, res) => {
+  try {
+
+    const planId = req.params.planId;
+
+    const { error } = await supabase
+      .from("subscription_plans")
+      .delete()
+      .eq("id", planId);
+
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    return res.json({
+      message: "Plan deleted"
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message
+    });
+  }
+};

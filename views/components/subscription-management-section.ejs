@@ -1,0 +1,145 @@
+<section id="subscriptionsView" class="view-section">
+
+    <div class="topbar">
+        <div>
+            <h1 class="page-title">Subscription Management</h1>
+
+            <p class="page-copy">
+                Manage app subscription plans and pricing.
+            </p>
+        </div>
+
+        <button class="solid-btn" onclick="openCreatePlanModal()">
+            Add Plan
+        </button>
+    </div>
+
+    <div class="glass-card panel-card">
+
+        <div class="panel-head">
+            <div>
+                <h2 class="panel-title">Subscription Plans</h2>
+
+                <p class="panel-copy mb-0">
+                    Dynamic plans for mobile app subscriptions.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table align-middle">
+
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Price</th>
+                        <th>Billing</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody id="subscriptionTableBody">
+
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            Loading plans...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+
+
+    <div class="modal fade" id="subscriptionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Create Subscription Plan
+                    </h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                    <form id="subscriptionForm" class="row g-3">
+
+                        <input type="hidden" id="editingPlanId" />
+
+                        <div class="col-12">
+                            <label class="form-label">
+                                Plan Name
+                            </label>
+
+                            <input id="planNameInput" class="form-control" required />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">
+                                Description
+                            </label>
+
+                            <textarea id="planDescriptionInput" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label">
+                                Price
+                            </label>
+
+                            <input id="planPriceInput" type="number" class="form-control" required />
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label">
+                                Billing Cycle
+                            </label>
+
+                            <select id="billingCycleInput" class="form-select">
+                                <option value="monthly">
+                                    Monthly
+                                </option>
+
+                                <option value="yearly">
+                                    Yearly
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">
+                                Features
+                            </label>
+
+                            <input id="featuresInput" class="form-control"
+                                placeholder="Unlimited Likes, Priority Match" />
+                        </div>
+
+                        <div class="col-12 d-flex gap-2">
+
+                            <button class="solid-btn" type="submit">
+                                Save Plan
+                            </button>
+
+                            <button type="button" class="action-btn neutral-btn" onclick="resetPlanForm()">
+                                Reset
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</section>

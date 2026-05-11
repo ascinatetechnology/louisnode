@@ -12,7 +12,11 @@ import {
   deleteAdminUser,
   banUser,
   unbanUser,
-  removeAbusiveProfile
+  removeAbusiveProfile,
+  getSubscriptionPlans,
+  createSubscriptionPlan,
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -29,5 +33,27 @@ router.delete("/users/:userId", verifyAdminToken, deleteAdminUser);
 router.patch("/users/:userId/ban", verifyAdminToken, banUser);
 router.patch("/users/:userId/unban", verifyAdminToken, unbanUser);
 router.delete("/users/:userId/remove-profile", verifyAdminToken, removeAbusiveProfile);
+router.get(
+  "/subscriptions",
+  verifyAdminToken,
+  getSubscriptionPlans
+);
 
+router.post(
+  "/subscriptions",
+  verifyAdminToken,
+  createSubscriptionPlan
+);
+
+router.patch(
+  "/subscriptions/:planId",
+  verifyAdminToken,
+  updateSubscriptionPlan
+);
+
+router.delete(
+  "/subscriptions/:planId",
+  verifyAdminToken,
+  deleteSubscriptionPlan
+);
 export default router;

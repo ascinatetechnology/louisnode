@@ -61,8 +61,18 @@
       button.classList.add("active");
       document.getElementById(`${button.dataset.view}View`).classList.add("active");
 
-      if (button.dataset.view === "users" && loadedUsers.length === 0) {
+      if (
+        button.dataset.view === "users" &&
+        loadedUsers.length === 0
+      ) {
         await loadUsers();
+      }
+
+      if (
+        button.dataset.view === "subscriptions" &&
+        loadedPlans.length === 0
+      ) {
+        await loadPlans();
       }
     });
   });
@@ -294,12 +304,12 @@
   window.deleteUser = async (userId) => {
     const result = window.Swal
       ? await Swal.fire({
-          title: "Delete this user?",
-          text: "This removes the user and connected app records.",
-          icon: "warning",
-          showCancelButton: true,
-          confirmButtonText: "Delete"
-        })
+        title: "Delete this user?",
+        text: "This removes the user and connected app records.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Delete"
+      })
       : { isConfirmed: window.confirm("Delete this user?") };
 
     if (!result.isConfirmed) return;
@@ -339,4 +349,245 @@
       showMessage(error.message, "danger");
     }
   });
+
+  let loadedPlans = [];
+
+  const renderPlans = (plans) => {
+
+    const subscriptionTableBody =
+      document.getElementById("subscriptionTableBody");
+
+    if (!plans || plans.length === 0) {
+
+      subscriptionTableBody.innerHTML = `
+      <tr>
+        <td colspan="5" class="empty-state">
+          No subscription plans found.
+        </td>
+      </tr>
+    `;
+
+      return;
+    }
+
+    subscriptionTableBody.innerHTML = plans.map((plan) => `
+    <tr>
+
+      <td>
+        <div class="fw-bold">
+          ${escapeHtml(plan.name)}
+        </div>
+
+        <div class="small text-secondary">
+          ${escapeHtml(plan.description || "")}
+        </div>
+      </td>
+
+      <td>
+        ₹${escapeHtml(plan.price)}
+      </td>
+
+      <td>
+        ${escapeHtml(plan.billing_cycle)}
+      </td>
+
+      <td>
+        <span class="status-chip">
+          ${plan.is_active ? "Active" : "Inactive"}
+        </span>
+      </td>
+
+      <td>
+
+        <div class="d-flex gap-2 flex-wrap">
+
+          <button
+            class="action-btn neutral-btn"
+            onclick="editPlan('${plan.id}')"
+          >
+            Edit
+          </button>
+
+          <button
+            class="action-btn danger-btn"
+            onclick="deletePlan('${plan.id}')"
+          >
+            Delete
+          </button>
+
+        </div>
+
+      </td>
+
+    </tr>
+  `).join("");
+  };
+
+  const loadPlans = async () => {
+
+    try {
+
+      const data = await requestJson(
+        "/admin/subscriptions"
+      );
+
+      loadedPlans = data.plans || [];
+
+      renderPlans(loadedPlans);
+
+    } catch (error) {
+
+      showMessage(error.message, "danger");
+    }
+  };
+
+  const resetPlanForm = () => {
+
+    document.getElementById("editingPlanId").value = "";
+
+    document.getElementById("subscriptionForm").reset();
+  };
+  window.openCreatePlanModal = () => {
+
+    resetPlanForm();
+
+    const modal =
+      bootstrap.Modal.getOrCreateInstance(
+        document.getElementById("subscriptionModal")
+      );
+
+    modal.show();
+  };
+
+  window.editPlan = (planId) => {
+
+    const plan = loadedPlans.find(
+      item => item.id === planId
+    );
+
+    if (!plan) return;
+
+    document.getElementById("editingPlanId").value =
+      plan.id;
+
+    document.getElementById("planNameInput").value =
+      plan.name || "";
+
+    document.getElementById("planDescriptionInput").value =
+      plan.description || "";
+
+    document.getElementById("planPriceInput").value =
+      plan.price || "";
+
+    document.getElementById("billingCycleInput").value =
+      plan.billing_cycle || "monthly";
+
+    document.getElementById("featuresInput").value =
+      (plan.features || []).join(", ");
+
+    const modalElement =
+      document.getElementById("subscriptionModal");
+
+    const modal =
+      bootstrap.Modal.getOrCreateInstance(
+        modalElement
+      );
+
+    modal.show();
+  };
+
+  window.deletePlan = async (planId) => {
+
+    try {
+
+      const data = await requestJson(
+        `/admin/subscriptions/${planId}`,
+        {
+          method: "DELETE"
+        }
+      );
+
+      showMessage(data.message, "success");
+
+      await loadPlans();
+
+    } catch (error) {
+
+      showMessage(error.message, "danger");
+    }
+  };
+
+  document.getElementById("subscriptionForm")
+    .addEventListener("submit", async (event) => {
+
+      event.preventDefault();
+
+      const planId =
+        document.getElementById("editingPlanId").value;
+
+      const payload = {
+
+        name:
+          document.getElementById("planNameInput").value,
+
+        description:
+          document.getElementById("planDescriptionInput").value,
+
+        price: Number(
+          document.getElementById("planPriceInput").value
+        ),
+
+        billing_cycle:
+          document.getElementById("billingCycleInput").value,
+
+        features:
+          document.getElementById("featuresInput")
+            .value
+            .split(",")
+            .map(item => item.trim())
+      };
+
+      try {
+
+        const data = await requestJson(
+
+          planId
+            ? `/admin/subscriptions/${planId}`
+            : "/admin/subscriptions",
+
+          {
+            method: planId ? "PATCH" : "POST",
+
+            body: JSON.stringify(payload)
+          }
+        );
+
+        showMessage(
+          planId
+            ? "Plan updated successfully"
+            : "Plan created successfully",
+
+          "success"
+        );
+
+        resetPlanForm();
+
+        const modal =
+          bootstrap.Modal.getInstance(
+            document.getElementById("subscriptionModal")
+          );
+
+        if (modal) {
+          modal.hide();
+        }
+
+        await loadPlans();
+
+      } catch (error) {
+
+        showMessage(error.message, "danger");
+      }
+    });
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
