@@ -86,9 +86,7 @@ async (req, res) => {
 
         customer: customer.id,
 
-        automatic_payment_methods: {
-          enabled: true,
-        },
+        payment_method_types: ["card"],
 
         metadata: {
           plan_id: plan.id,
@@ -154,7 +152,6 @@ async (req, res) => {
       });
     }
 
-    // GET PLAN
     const {
       data: plan,
       error: planError
@@ -176,7 +173,6 @@ async (req, res) => {
 
     const endDate = new Date();
 
-    // MONTHLY / YEARLY
     if (
       plan.billing_cycle === "yearly"
     ) {
@@ -192,7 +188,6 @@ async (req, res) => {
       );
     }
 
-    // SAVE SUBSCRIPTION
     const {
       data,
       error
