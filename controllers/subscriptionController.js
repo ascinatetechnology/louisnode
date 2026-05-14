@@ -200,6 +200,9 @@ async (req, res) => {
           status: "active",
           start_date: startDate,
           end_date: endDate,
+          plan_id: plan.id,
+          amount: plan.price,
+          billing_cycle: plan.billing_cycle,
         }
       ])
       .select()
