@@ -51,11 +51,29 @@ export const getProfile = async (req, res) => {
 
     const interestIds = interestData.map(item => item.interest_id);
 
+    const now = new Date().toISOString();
+
+    const { data: activeSubscription, error: subscriptionError } = await supabase
+      .from("subscriptions")
+      .select("id, plan, status, start_date, end_date, plan_id, amount, billing_cycle")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .gte("end_date", now)
+      .order("end_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (subscriptionError) {
+      return res.status(400).json(subscriptionError);
+    }
+
     res.json({
       ...user,
       video_url: videoData?.[0]?.video_url || null,
       interests: interestIds,
-      photos: photoData || []
+      photos: photoData || [],
+      has_active_subscription: !!activeSubscription,
+      active_subscription: activeSubscription || null
     });
 
   } catch (err) {
