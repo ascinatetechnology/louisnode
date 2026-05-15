@@ -61,6 +61,11 @@ const getGoogleRedirectUri = (req) => {
     || `https://${req.get("host")}/auth/google/callback`;
 };
 
+const getFacebookRedirectUri = (req) => {
+  return process.env.FACEBOOK_REDIRECT_URI
+    || `https://${req.get("host")}/auth/facebook/callback`;
+};
+
 const getGoogleUserInfo = async (code, redirectUri) => {
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -97,6 +102,34 @@ const getGoogleUserInfo = async (code, redirectUri) => {
   return googleUser;
 };
 
+const getFacebookUserInfo = async (code, redirectUri) => {
+  const tokenUrl = new URL("https://graph.facebook.com/v20.0/oauth/access_token");
+  tokenUrl.searchParams.set("client_id", process.env.FACEBOOK_APP_ID);
+  tokenUrl.searchParams.set("client_secret", process.env.FACEBOOK_APP_SECRET);
+  tokenUrl.searchParams.set("redirect_uri", redirectUri);
+  tokenUrl.searchParams.set("code", code);
+
+  const tokenResponse = await fetch(tokenUrl.toString());
+  const tokenData = await tokenResponse.json();
+
+  if (!tokenResponse.ok) {
+    throw new Error(tokenData.error?.message || "Facebook token exchange failed");
+  }
+
+  const userInfoUrl = new URL("https://graph.facebook.com/me");
+  userInfoUrl.searchParams.set("fields", "id,name,email,picture.type(large)");
+  userInfoUrl.searchParams.set("access_token", tokenData.access_token);
+
+  const userInfoResponse = await fetch(userInfoUrl.toString());
+  const facebookUser = await userInfoResponse.json();
+
+  if (!userInfoResponse.ok) {
+    throw new Error(facebookUser.error?.message || "Facebook profile fetch failed");
+  }
+
+  return facebookUser;
+};
+
 const findOrCreateGoogleUser = async (googleUser) => {
   const email = googleUser.email?.trim().toLowerCase();
 
@@ -123,6 +156,44 @@ const findOrCreateGoogleUser = async (googleUser) => {
       email,
       password: randomPassword,
       profile_image: googleUser.picture || null
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newUser;
+};
+
+const findOrCreateFacebookUser = async (facebookUser) => {
+  const email = facebookUser.email?.trim().toLowerCase();
+
+  if (!email) {
+    throw new Error("Facebook account email is required");
+  }
+
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const randomPassword = await bcrypt.hash(`facebook:${facebookUser.id}:${Date.now()}`, 10);
+  const profileImage = facebookUser.picture?.data?.url || null;
+
+  const { data: newUser, error } = await supabase
+    .from("users")
+    .insert([{
+      name: facebookUser.name || email.split("@")[0],
+      email,
+      password: randomPassword,
+      profile_image: profileImage
     }])
     .select()
     .single();
@@ -457,6 +528,63 @@ export const googleLoginCallback = async (req, res) => {
     console.error("GOOGLE LOGIN CALLBACK ERROR:", err);
     return redirectWithParams(res, appRedirectUri, {
       error: err.message || "Google login failed"
+    });
+  }
+};
+
+export const facebookLoginStart = async (req, res) => {
+  try {
+    if (!process.env.FACEBOOK_APP_ID || !process.env.FACEBOOK_APP_SECRET) {
+      return res.status(500).json({
+        message: "Facebook login is not configured"
+      });
+    }
+
+    const appRedirectUri = getAppRedirectUri(req.query.redirect_uri);
+    const redirectUri = getFacebookRedirectUri(req);
+
+    const facebookAuthUrl = new URL("https://www.facebook.com/v20.0/dialog/oauth");
+    facebookAuthUrl.searchParams.set("client_id", process.env.FACEBOOK_APP_ID);
+    facebookAuthUrl.searchParams.set("redirect_uri", redirectUri);
+    facebookAuthUrl.searchParams.set("response_type", "code");
+    facebookAuthUrl.searchParams.set("scope", "email,public_profile");
+    facebookAuthUrl.searchParams.set("state", encodeState({ appRedirectUri }));
+
+    return res.redirect(facebookAuthUrl.toString());
+  } catch (err) {
+    console.error("FACEBOOK LOGIN START ERROR:", err);
+    return res.status(500).json({
+      message: "Facebook login failed",
+      error: err.message
+    });
+  }
+};
+
+export const facebookLoginCallback = async (req, res) => {
+  const { appRedirectUri } = decodeState(req.query.state);
+
+  try {
+    const { code, error, error_message } = req.query;
+
+    if (error) {
+      return redirectWithParams(res, appRedirectUri, {
+        error: error_message || error
+      });
+    }
+
+    if (!code) {
+      return redirectWithParams(res, appRedirectUri, { error: "Missing Facebook authorization code" });
+    }
+
+    const facebookUser = await getFacebookUserInfo(code, getFacebookRedirectUri(req));
+    const user = await findOrCreateFacebookUser(facebookUser);
+    const token = createAuthToken(user.id);
+
+    return redirectWithParams(res, appRedirectUri, { token });
+  } catch (err) {
+    console.error("FACEBOOK LOGIN CALLBACK ERROR:", err);
+    return redirectWithParams(res, appRedirectUri, {
+      error: err.message || "Facebook login failed"
     });
   }
 };
