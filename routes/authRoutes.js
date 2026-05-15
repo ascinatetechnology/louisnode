@@ -10,13 +10,17 @@ import {
   resetPassword,
   verifyResetOtp,
   changePassword,
-  verifyTwoStepLogin
+  verifyTwoStepLogin,
+  googleLoginStart,
+  googleLoginCallback
 } from "../controllers/authController.js";
 
 const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.get("/google", googleLoginStart);
+router.get("/google/callback", googleLoginCallback);
 router.post("/verify-two-step-login", verifyTwoStepLogin);
 router.post("/logout", logout);
 

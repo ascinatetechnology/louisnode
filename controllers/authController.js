@@ -5,6 +5,134 @@ import { generateOTP } from "../utils/otp.js";
 
 import { sendEmail } from "../config/emailService.js";
 
+const createAuthToken = (userId) => jwt.sign(
+  { id: userId },
+  process.env.JWT_SECRET,
+  { expiresIn: "7d" }
+);
+
+const encodeState = (state) => Buffer
+  .from(JSON.stringify(state))
+  .toString("base64url");
+
+const decodeState = (state) => {
+  try {
+    return JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+  } catch {
+    return {};
+  }
+};
+
+const redirectWithParams = (res, redirectUri, params) => {
+  const url = new URL(redirectUri || "louis://signin");
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      url.searchParams.set(key, value);
+    }
+  });
+
+  return res.redirect(url.toString());
+};
+
+const getAppRedirectUri = (redirectUri) => {
+  const fallbackRedirectUri = "louis://signin";
+
+  if (!redirectUri) {
+    return fallbackRedirectUri;
+  }
+
+  try {
+    const url = new URL(redirectUri);
+    const allowedProtocols = ["louis:", "exp:", "exps:"];
+
+    if (allowedProtocols.includes(url.protocol)) {
+      return redirectUri;
+    }
+  } catch {
+    return fallbackRedirectUri;
+  }
+
+  return fallbackRedirectUri;
+};
+
+const getGoogleRedirectUri = (req) => {
+  return process.env.GOOGLE_REDIRECT_URI
+    || `https://${req.get("host")}/auth/google/callback`;
+};
+
+const getGoogleUserInfo = async (code, redirectUri) => {
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code"
+    }).toString()
+  });
+
+  const tokenData = await tokenResponse.json();
+
+  if (!tokenResponse.ok) {
+    throw new Error(tokenData.error_description || tokenData.error || "Google token exchange failed");
+  }
+
+  const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`
+    }
+  });
+
+  const googleUser = await userInfoResponse.json();
+
+  if (!userInfoResponse.ok) {
+    throw new Error(googleUser.error_description || googleUser.error || "Google profile fetch failed");
+  }
+
+  return googleUser;
+};
+
+const findOrCreateGoogleUser = async (googleUser) => {
+  const email = googleUser.email?.trim().toLowerCase();
+
+  if (!email || googleUser.email_verified !== true) {
+    throw new Error("Google account email is not verified");
+  }
+
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const randomPassword = await bcrypt.hash(`google:${googleUser.sub}:${Date.now()}`, 10);
+
+  const { data: newUser, error } = await supabase
+    .from("users")
+    .insert([{
+      name: googleUser.name || email.split("@")[0],
+      email,
+      password: randomPassword
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return newUser;
+};
+
 
 export const register = async (req, res) => {
   try {
@@ -272,6 +400,62 @@ export const login = async (req, res) => {
     res.status(500).json({
       message: "Login failed",
       error: err.message
+    });
+  }
+};
+
+export const googleLoginStart = async (req, res) => {
+  try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(500).json({
+        message: "Google login is not configured"
+      });
+    }
+
+    const appRedirectUri = getAppRedirectUri(req.query.redirect_uri);
+    const redirectUri = getGoogleRedirectUri(req);
+
+    const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    googleAuthUrl.searchParams.set("client_id", process.env.GOOGLE_CLIENT_ID);
+    googleAuthUrl.searchParams.set("redirect_uri", redirectUri);
+    googleAuthUrl.searchParams.set("response_type", "code");
+    googleAuthUrl.searchParams.set("scope", "openid email profile");
+    googleAuthUrl.searchParams.set("prompt", "select_account");
+    googleAuthUrl.searchParams.set("state", encodeState({ appRedirectUri }));
+
+    return res.redirect(googleAuthUrl.toString());
+  } catch (err) {
+    console.error("GOOGLE LOGIN START ERROR:", err);
+    return res.status(500).json({
+      message: "Google login failed",
+      error: err.message
+    });
+  }
+};
+
+export const googleLoginCallback = async (req, res) => {
+  const { appRedirectUri } = decodeState(req.query.state);
+
+  try {
+    const { code, error } = req.query;
+
+    if (error) {
+      return redirectWithParams(res, appRedirectUri, { error });
+    }
+
+    if (!code) {
+      return redirectWithParams(res, appRedirectUri, { error: "Missing Google authorization code" });
+    }
+
+    const googleUser = await getGoogleUserInfo(code, getGoogleRedirectUri(req));
+    const user = await findOrCreateGoogleUser(googleUser);
+    const token = createAuthToken(user.id);
+
+    return redirectWithParams(res, appRedirectUri, { token });
+  } catch (err) {
+    console.error("GOOGLE LOGIN CALLBACK ERROR:", err);
+    return redirectWithParams(res, appRedirectUri, {
+      error: err.message || "Google login failed"
     });
   }
 };
