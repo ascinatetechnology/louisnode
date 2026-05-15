@@ -121,7 +121,8 @@ const findOrCreateGoogleUser = async (googleUser) => {
     .insert([{
       name: googleUser.name || email.split("@")[0],
       email,
-      password: randomPassword
+      password: randomPassword,
+      profile_image: googleUser.picture || null
     }])
     .select()
     .single();
